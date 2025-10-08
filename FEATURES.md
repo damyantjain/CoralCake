@@ -10,6 +10,8 @@ This document outlines the current and planned features for CoralCake, a platfor
 - **Capabilities**:
   - Support for OpenAI (gpt-4o, gpt-4o-mini) and Mistral (mistral-small) models
   - Real-time performance metrics (latency, token usage, cost)
+  - **NEW**: Automatic quality evaluation (relevance, coherence, readability)
+  - **NEW**: Human feedback (thumbs up/down, star ratings)
   - Side-by-side response comparison
   - Export results to CSV or JSON format
   - Aggregate statistics (total cost, average latency, total tokens)
@@ -47,13 +49,41 @@ This document outlines the current and planned features for CoralCake, a platfor
   - JSON (for programmatic use)
 - **Includes**: All metrics, prompts, and responses
 
+### 6. Automated Response Quality Evaluation ✨ NEW
+- **Description**: Objective quality assessment beyond basic metrics
+- **Built-in Scoring**:
+  - **Relevance Score (0-100)**: Measures keyword overlap between prompt and response
+  - **Coherence Score (0-100)**: Analyzes sentence structure and logical flow
+  - **Readability Score (0-100)**: Flesch Reading Ease formula for comprehension level
+  - **Overall Score**: Weighted average (Relevance 50%, Coherence 30%, Readability 20%)
+  - Color-coded quality badges (green ≥80, yellow ≥60, orange <60)
+- **Human Feedback**:
+  - Thumbs up/down for quick sentiment
+  - 5-star rating system for detailed feedback
+  - Interactive feedback UI on each response
+- **Custom Evaluations**:
+  - **Length Check**: Validates response length appropriateness
+  - **Sentiment Positivity**: Analyzes positive vs negative language
+  - **Code Presence**: Detects code snippets in responses
+  - Extensible framework for adding custom evaluation scripts
+  - API endpoint: `/api/evaluate-custom` for programmatic access
+
+### 7. Grammar & Structure Analysis
+- **Description**: Basic grammar and formatting checks
+- **Checks**:
+  - Repeated word detection
+  - Spacing and punctuation validation
+  - Sentence capitalization
+  - Sentence count and average length metrics
+
 ## Planned Features
 
-### Phase 2: Automated Response Quality Evaluation
-- Built-in scoring system (relevance, coherence, grammar)
-- Human feedback integration (thumbs up/down, star ratings)
-- Custom evaluation script support
-- Third-party validator integration (RAGAS, TruLens)
+### Phase 2: Response Quality Evaluation (Partially Complete ✅)
+- ✅ Built-in scoring system (relevance, coherence, readability)
+- ✅ Human feedback UI (thumbs up/down, star ratings)
+- ✅ Custom evaluation script framework
+- 🔄 Feedback persistence to database (requires schema updates)
+- 🔄 Third-party validator integration (RAGAS, TruLens)
 
 ### Phase 3: Batch Prompt Testing
 - Bulk prompt upload (CSV, JSON)
