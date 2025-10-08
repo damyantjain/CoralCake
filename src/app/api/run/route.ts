@@ -7,6 +7,8 @@ import { callOpenAIViaHelicone, type LLMResult } from '@/lib/llm/openaiFetch';
 import { callMistralViaHelicone } from '@/lib/llm/mistralFetch';
 import { estimateCostUSD, type Usage } from '@/lib/llm/pricing';
 import { withTimeout } from '@/lib/utils';
+import { evaluateResponse } from '@/lib/evaluation/scoring';
+import type { EvaluationMetrics } from '@/lib/evaluation/types';
 
 type RunRequest = {
   prompt: string;
@@ -19,6 +21,7 @@ type PerModelMetrics = {
   cost_usd?: number;
   error?: string;
   text_len?: number;
+  evaluation?: EvaluationMetrics;
 };
 
 type RunResult = {
@@ -28,6 +31,7 @@ type RunResult = {
   usage?: Usage;
   cost_usd?: number;
   error?: string;
+  evaluation?: EvaluationMetrics;
 };
 
 type RunResponse = {
@@ -111,11 +115,13 @@ export async function POST(req: Request) {
     for (const r of settled) {
       if (r.ok) {
         const cost = estimateCostUSD(r.model, r.usage);
+        const evaluation = evaluateResponse(prompt, r.text);
         metrics[r.model] = {
           latency_ms: r.latency_ms,
           usage: r.usage,
           cost_usd: cost,
           text_len: r.text.length,
+          evaluation,
         };
         results.push({
           model: r.model,
@@ -123,6 +129,7 @@ export async function POST(req: Request) {
           latency_ms: r.latency_ms,
           usage: r.usage,
           cost_usd: cost,
+          evaluation,
         });
       } else {
         metrics[r.model] = { latency_ms: 0, error: r.error };
