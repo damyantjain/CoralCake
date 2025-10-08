@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
+import { FeedbackButtons } from '@/components/feedback/FeedbackButtons';
 
 type Usage = { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 type Result = { 
@@ -32,6 +33,12 @@ export default function RunnerPage() {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
+  }
+
+  function handleFeedback(model: string, thumbs: 'up' | 'down', stars?: number) {
+    // TODO: Save feedback to database via API
+    // For now, just log to console
+    console.log(`Feedback for ${model}:`, { thumbs, stars });
   }
 
   async function onRun(e: React.FormEvent) {
@@ -281,7 +288,15 @@ export default function RunnerPage() {
                   {results.map((r) => (
                     <div key={r.model} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-sm font-semibold text-gray-900">{r.model}</h4>
+                        <div className="flex items-center gap-4">
+                          <h4 className="text-sm font-semibold text-gray-900">{r.model}</h4>
+                          {!r.error && (
+                            <FeedbackButtons 
+                              model={r.model}
+                              onFeedback={(thumbs: 'up' | 'down', stars?: number) => handleFeedback(r.model, thumbs, stars)}
+                            />
+                          )}
+                        </div>
                         {r.error ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             Error
