@@ -26,12 +26,10 @@ export default function Header() {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
-    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
-    const redirectTo = pathname && pathname !== '/' ? pathname : '/';
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { 
-        emailRedirectTo: `${callbackUrl}?redirectTo=${encodeURIComponent(redirectTo)}`
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}`
       }
     });
     setLoading(false);
@@ -50,14 +48,14 @@ export default function Header() {
         <div className="flex items-center gap-6">
           <Link href="/" className="font-semibold text-gray-900">CoralCake</Link>
           <nav className="hidden sm:flex items-center gap-4">
-            <Link 
-              href="/runner" 
+            <Link
+              href="/runner"
               className={`text-sm ${pathname === '/runner' ? 'text-orange-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
             >
               Runner
             </Link>
-            <Link 
-              href="/compare" 
+            <Link
+              href="/compare"
               className={`text-sm ${pathname === '/compare' ? 'text-orange-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
             >
               Compare
