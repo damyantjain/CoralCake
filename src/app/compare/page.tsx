@@ -3,11 +3,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+type Usage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
 type ModelMetrics = {
   latency_ms: number;
-  tokens: number;
-  cost: number;
+  usage?: Usage;
+  cost_usd?: number;
   error?: string;
+  text_len?: number;
 };
 type Run = {
   id: string;
@@ -189,9 +196,15 @@ export default function ComparePage() {
                                 {Object.entries(run.metrics).map(([model, metrics]) => (
                                   <tr key={model}>
                                     <td className="py-2 px-3 font-medium text-gray-900">{model}</td>
-                                    <td className="py-2 px-3 text-gray-600">{metrics.latency_ms}ms</td>
-                                    <td className="py-2 px-3 text-gray-600">{metrics.tokens}</td>
-                                    <td className="py-2 px-3 text-gray-600">${metrics.cost.toFixed(4)}</td>
+                                    <td className="py-2 px-3 text-gray-600">
+                                      {metrics.error ? 'N/A' : `${metrics.latency_ms}ms`}
+                                    </td>
+                                    <td className="py-2 px-3 text-gray-600">
+                                      {metrics.error ? 'Error' : (metrics.usage?.total_tokens ?? 'N/A')}
+                                    </td>
+                                    <td className="py-2 px-3 text-gray-600">
+                                      {metrics.error ? 'N/A' : (typeof metrics.cost_usd === 'number' ? `$${metrics.cost_usd.toFixed(4)}` : 'N/A')}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>

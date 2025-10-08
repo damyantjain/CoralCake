@@ -1,26 +1,22 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
 function LoginPageComponent() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/';
 
   async function onSendLink(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
 
-    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${callbackUrl}?redirectTo=${encodeURIComponent(redirectTo)}`
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}`
       }
     });
 

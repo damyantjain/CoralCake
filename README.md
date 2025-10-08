@@ -42,4 +42,47 @@ Whether you are evaluating LLMs for integration, optimizing prompt engineering, 
 
 ---
 
+## Getting Started
+
+### For Users
+
 Visit the live app at: [https://coralcake.vercel.app](https://coralcake.vercel.app)
+
+### For Developers
+
+Want to contribute or run CoralCake locally? See our development guides:
+
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Complete setup instructions for local development
+- **[Copilot Agent Setup](./docs/COPILOT_AGENT_SETUP.md)** - Guide for GitHub Copilot agents
+- **[Usage Guide](./docs/USAGE_GUIDE.md)** - How to use CoralCake features
+- **[Implementation Notes](./docs/IMPLEMENTATION_NOTES.md)** - Technical implementation details
+
+Quick start:
+```bash
+# Clone the repository
+git clone https://github.com/damyantjain/CoralCake.git
+cd CoralCake
+
+# Install dependencies
+npm ci
+
+# Copy environment variables template
+cp .env.example .env.local
+# Edit .env.local with your API keys (see Development Guide)
+
+# Run development server
+npm run dev
+```
+
+---
+
+## Contributing
+
+We welcome contributions! Before submitting a PR:
+
+1. Read the [Development Guide](./docs/DEVELOPMENT.md)
+2. Follow the [Copilot Instructions](./.github/copilot-instructions.md)
+3. Ensure lint and typecheck pass: `npm run lint && npx tsc --noEmit`
+4. Keep changes small and focused
+
+---
