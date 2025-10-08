@@ -4,7 +4,7 @@ This is a quick reference for configuring Supabase authentication redirects. For
 
 ## The One Critical Thing
 
-**Set `NEXT_PUBLIC_SITE_URL` correctly for each environment.**
+**Add all your domains to Supabase redirect URLs.** The app automatically detects the correct URL at runtime.
 
 ## Configuration Checklist
 
@@ -24,32 +24,30 @@ https://coralcake.vercel.app/auth/callback
 https://*.vercel.app/auth/callback
 ```
 
-### ✅ Local Development
+### ✅ All Environments
 
-Create `.env.local` (copy from `.env.example`):
+Create `.env.local` for local development (copy from `.env.example`):
 ```bash
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### ✅ Production (Vercel)
+In Vercel, set the same environment variables. **No `NEXT_PUBLIC_SITE_URL` needed.**
 
-In Vercel project settings → Environment Variables:
-```bash
-NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
+## How It Works
 
-## Code Changes Required?
-
-**No.** The existing codebase is already properly configured. It uses `NEXT_PUBLIC_SITE_URL` to dynamically construct callback URLs:
+The application automatically detects the correct callback URL using `window.location.origin`:
 
 ```typescript
-// This already works correctly in both environments
-const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+// Automatically uses the correct domain at runtime
+const callbackUrl = `${window.location.origin}/auth/callback`;
 ```
+
+This means:
+- ✅ Works in **any** environment without configuration
+- ✅ No build-time environment variables needed
+- ✅ Preview deployments work automatically
+- ✅ No Doppler/environment-specific setup required
 
 ## Testing Authentication
 
@@ -69,27 +67,31 @@ const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
 ## Common Issues
 
 ### ❌ "Invalid redirect URL"
-- **Fix:** Ensure callback URL is in Supabase's allowed list
-- **Check:** Does `${NEXT_PUBLIC_SITE_URL}/auth/callback` match one of the configured redirect URLs?
+- **Fix:** Add the domain to Supabase's allowed redirect URLs
+- **Local:** Add `http://localhost:3000/auth/callback`
+- **Production:** Add `https://coralcake.vercel.app/auth/callback`
+- **Previews:** Add `https://*.vercel.app/auth/callback`
 
 ### ❌ Auth works locally but not in production
-- **Fix:** Set `NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app` in Vercel environment variables
-- **Remember:** Redeploy after changing environment variables
+- **Fix:** Add production URL to Supabase redirect URLs: `https://coralcake.vercel.app/auth/callback`
+- **No code changes or redeployment needed**
 
 ### ❌ Wrong domain in magic link
-- **Fix:** Check that `NEXT_PUBLIC_SITE_URL` is correct for the environment
-- **Local:** Must be `http://localhost:3000` (not https)
-- **Production:** Must be `https://coralcake.vercel.app` (not http)
+- **Unlikely with current implementation** (uses runtime detection)
+- **If it happens:** Clear browser cache and ensure you're running the latest code
 
 ## How It Works
 
 1. User enters email
-2. App calls Supabase with `emailRedirectTo: ${NEXT_PUBLIC_SITE_URL}/auth/callback?redirectTo=/runner`
-3. Supabase validates URL against allowed redirect URLs
-4. Supabase sends email with magic link
-5. User clicks link → redirected to callback URL with auth tokens
-6. Callback page processes tokens and sets up session
-7. User redirected to intended destination
+2. App detects current domain: `window.location.origin`
+3. App calls Supabase with `emailRedirectTo: ${window.location.origin}/auth/callback?redirectTo=/runner`
+4. Supabase validates URL against allowed redirect URLs
+5. Supabase sends email with magic link to the detected domain
+6. User clicks link → redirected to callback URL with auth tokens
+7. Callback page processes tokens and sets up session
+8. User redirected to intended destination
+
+**Key advantage:** Works in any environment automatically, no configuration needed.
 
 ## Need More Help?
 
@@ -102,10 +104,7 @@ See [SUPABASE_AUTH_SETUP.md](SUPABASE_AUTH_SETUP.md) for:
 
 ---
 
-**Quick Answer to the Issue:**
-No code changes needed. Just ensure:
-1. Supabase dashboard has all three redirect URLs configured
-2. `NEXT_PUBLIC_SITE_URL` is set correctly in each environment
-3. Environment is correct (http for local, https for prod)
-
-That's it! 🎉
+**Quick Answer:**
+1. Add all domains to Supabase redirect URLs (one-time setup)
+2. Set Supabase URL and anon key in environment variables
+3. That's it! The app automatically detects the correct domain at runtime 🎉

@@ -16,7 +16,7 @@ function LoginPageComponent() {
     setLoading(true);
     setMsg(null);
 
-    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const callbackUrl = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

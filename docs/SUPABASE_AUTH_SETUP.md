@@ -6,20 +6,24 @@ This guide explains how to properly configure Supabase authentication for CoralC
 
 CoralCake uses Supabase for authentication with a magic link (passwordless) flow. The authentication requires proper configuration of redirect URLs in both the Supabase dashboard and your application environment variables.
 
-## Key Concept: NEXT_PUBLIC_SITE_URL
+## Key Concept: Dynamic Redirect URLs
 
-The `NEXT_PUBLIC_SITE_URL` environment variable is **critical** for authentication to work correctly. It tells Supabase where to redirect users after they click the magic link in their email.
+CoralCake uses **runtime detection** to automatically determine the correct callback URL for authentication. This means authentication works seamlessly in any environment without requiring environment-specific configuration.
 
-### Why It Matters
+### How It Works
 
 When a user requests a magic link:
-1. CoralCake constructs a callback URL: `${NEXT_PUBLIC_SITE_URL}/auth/callback`
-2. This URL is sent to Supabase as the `emailRedirectTo` parameter
-3. Supabase includes this URL in the magic link email
-4. After clicking the link, the user is redirected to this URL with auth tokens
-5. The `/auth/callback` page processes the tokens and completes authentication
+1. CoralCake constructs a callback URL using `window.location.origin`: `${window.location.origin}/auth/callback`
+2. This automatically uses the correct domain:
+   - `http://localhost:3000/auth/callback` when running locally
+   - `https://coralcake.vercel.app/auth/callback` in production
+   - `https://preview-xyz.vercel.app/auth/callback` in preview deployments
+3. This URL is sent to Supabase as the `emailRedirectTo` parameter
+4. Supabase includes this URL in the magic link email
+5. After clicking the link, the user is redirected to this URL with auth tokens
+6. The `/auth/callback` page processes the tokens and completes authentication
 
-**If `NEXT_PUBLIC_SITE_URL` is misconfigured, authentication will fail.**
+**The authentication flow automatically adapts to any environment without configuration changes.**
 
 ## Configuration Steps
 
@@ -50,54 +54,29 @@ https://*.vercel.app/auth/callback
 
 ### Step 2: Environment Variable Configuration
 
-#### Local Development
+#### Required Variables (All Environments)
 
 Create `.env.local` in your project root (copy from `.env.example`):
 
 ```bash
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-**Important:** Use `http://localhost:3000` (not `https`) for local development.
+**Note:** You do NOT need to set `NEXT_PUBLIC_SITE_URL` anymore. The application automatically detects the correct URL using `window.location.origin` at runtime.
 
 #### Production (Vercel)
 
 In your Vercel project settings → Environment Variables:
 
 ```bash
-NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-#### Preview Deployments (Optional)
+#### Preview Deployments
 
-For Vercel preview deployments, you have two options:
-
-**Option 1: Use Vercel System Environment Variable (Recommended)**
-Vercel automatically provides `VERCEL_URL` which contains the deployment URL:
-```bash
-# This is automatically available in Vercel
-NEXT_PUBLIC_SITE_URL=https://${VERCEL_URL}
-```
-
-However, Next.js doesn't support variable interpolation in env vars, so you need to set it in your `next.config.ts`:
-
-```typescript
-// next.config.ts
-const nextConfig = {
-  env: {
-    NEXT_PUBLIC_SITE_URL: process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-  },
-};
-```
-
-**Option 2: Use Wildcard Redirect (Current Setup)**
-Keep `NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app` for previews and rely on the wildcard redirect URL `https://*.vercel.app/auth/callback` in Supabase.
+Preview deployments work automatically without any additional configuration. The authentication flow detects the preview URL at runtime and uses it for the callback.
 
 ## Authentication Flow
 
@@ -109,13 +88,13 @@ Keep `NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app` for previews and rely o
    {
      email: 'user@example.com',
      options: {
-       emailRedirectTo: `${NEXT_PUBLIC_SITE_URL}/auth/callback?redirectTo=/runner`
+       emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=/runner`
      }
    }
    ```
 3. **Supabase validates** the redirect URL against dashboard configuration
 4. **Supabase sends email** with magic link containing the auth tokens
-5. **User clicks link** and browser opens: `http://localhost:3000/auth/callback#access_token=...&refresh_token=...`
+5. **User clicks link** and browser opens to the callback URL with tokens: `${origin}/auth/callback#access_token=...&refresh_token=...`
 6. **Client-side callback** (`/auth/callback/page.tsx`):
    - Extracts tokens from URL hash
    - Calls `supabase.auth.setSession()` to establish client session
@@ -142,27 +121,29 @@ Keep `NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app` for previews and rely o
 **Cause:** The callback URL is not in the Supabase allowed redirect URLs list.
 
 **Solution:**
-1. Check your `NEXT_PUBLIC_SITE_URL` environment variable
-2. Ensure `${NEXT_PUBLIC_SITE_URL}/auth/callback` is in Supabase redirect URLs
-3. For preview deployments, ensure wildcard `https://*.vercel.app/auth/callback` is added
+1. Verify the URL where you're accessing the app is in Supabase redirect URLs
+2. For local development: Ensure `http://localhost:3000/auth/callback` is added
+3. For production: Ensure `https://coralcake.vercel.app/auth/callback` is added
+4. For preview deployments: Ensure wildcard `https://*.vercel.app/auth/callback` is added
 
 ### Issue: Authentication works locally but not in production
 
-**Cause:** `NEXT_PUBLIC_SITE_URL` is not set correctly in production.
+**Cause:** The production URL is not in the Supabase allowed redirect URLs list.
 
 **Solution:**
-1. Check Vercel environment variables
-2. Ensure `NEXT_PUBLIC_SITE_URL=https://coralcake.vercel.app` in production
-3. Redeploy after changing environment variables
+1. Go to Supabase dashboard → Authentication → URL Configuration
+2. Add `https://coralcake.vercel.app/auth/callback` to redirect URLs
+3. No code changes or redeployment needed
 
-### Issue: User redirected to wrong domain
+### Issue: Different redirect URL in magic link email
 
-**Cause:** `NEXT_PUBLIC_SITE_URL` mismatch between environments.
+**Cause:** This should not happen with the current implementation using `window.location.origin`.
 
 **Solution:**
-- Local: Must be `http://localhost:3000`
-- Production: Must be `https://coralcake.vercel.app`
-- Never mix http/https incorrectly
+If you see a mismatched URL in the magic link:
+1. Clear your browser cache and try again
+2. Verify you're running the latest version of the code
+3. Check the browser console for the actual callback URL being sent
 
 ### Issue: Cookies not set after authentication
 
@@ -243,38 +224,54 @@ Supabase validates all redirect URLs against the allow list. Never use:
 
 If you change your production domain:
 
-1. Update Vercel environment variable: `NEXT_PUBLIC_SITE_URL`
-2. Update Supabase Site URL
-3. Add new domain to Supabase Redirect URLs
-4. Keep old domain for 24-48 hours during transition
-5. Redeploy application
-6. Test authentication thoroughly
+1. Update Supabase Site URL in dashboard
+2. Add new domain to Supabase Redirect URLs: `https://new-domain.com/auth/callback`
+3. Keep old domain in redirect URLs for 24-48 hours during transition
+4. Test authentication on new domain
+5. Remove old domain from redirect URLs after transition
+
+**Note:** No code changes or environment variable updates needed. The app automatically detects the domain at runtime.
 
 ### Adding New Environments
 
 For staging or other environments:
 
 1. Add redirect URL to Supabase: `https://staging.example.com/auth/callback`
-2. Set `NEXT_PUBLIC_SITE_URL=https://staging.example.com` in that environment
-3. Test authentication before launching
+2. Deploy the application to staging
+3. Test authentication - it will work automatically
 
-## Code Change Summary
+**No environment-specific configuration needed.**
 
-**Good news:** No code changes are required for authentication to work in different environments. The current implementation is environment-agnostic and relies solely on proper configuration.
+## Code Implementation
 
-### What's Already Correct
+### How It Works
 
-✅ Dynamic callback URL construction using `NEXT_PUBLIC_SITE_URL`
-✅ Proper token extraction from URL hash
-✅ Client and server session synchronization
-✅ Environment-aware cookie settings (`secure` flag)
-✅ Proper redirect flow with `redirectTo` parameter
+The authentication flow uses **runtime detection** to automatically adapt to any environment:
+
+```typescript
+// In src/app/login/page.tsx and src/components/Header.tsx
+const callbackUrl = `${window.location.origin}/auth/callback`;
+await supabase.auth.signInWithOtp({
+  email,
+  options: { 
+    emailRedirectTo: `${callbackUrl}?redirectTo=${encodeURIComponent(redirectTo)}`
+  }
+});
+```
+
+### What's Correct
+
+✅ **Runtime URL detection** using `window.location.origin` (not build-time env vars)
+✅ **Proper token extraction** from URL hash
+✅ **Client and server session synchronization**
+✅ **Environment-aware cookie settings** (`secure` flag based on NODE_ENV)
+✅ **Proper redirect flow** with `redirectTo` parameter
 
 ### What You Need to Configure
 
-⚙️ Supabase dashboard redirect URLs (one-time setup)
-⚙️ Environment variables for each deployment target
-⚙️ (Optional) Doppler or other secret management
+⚙️ **Supabase dashboard redirect URLs** (one-time setup for each domain)
+⚙️ **Supabase environment variables** (URL and anon key)
+⚙️ **(Optional) Doppler** or other secret management
 
 ## Best Practices
 

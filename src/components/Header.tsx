@@ -26,7 +26,7 @@ export default function Header() {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
-    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const callbackUrl = `${window.location.origin}/auth/callback`;
     const redirectTo = pathname && pathname !== '/' ? pathname : '/';
     const { error } = await supabase.auth.signInWithOtp({
       email,

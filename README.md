@@ -68,7 +68,6 @@ Whether you are evaluating LLMs for integration, optimizing prompt engineering, 
    ```
    
    Edit `.env.local` and set your actual values:
-   - `NEXT_PUBLIC_SITE_URL=http://localhost:3000`
    - `NEXT_PUBLIC_SUPABASE_URL` - From your Supabase project settings
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - From your Supabase project settings
    - `OPENAI_API_KEY` - Your OpenAI API key
@@ -77,10 +76,12 @@ Whether you are evaluating LLMs for integration, optimizing prompt engineering, 
 
 4. **Configure Supabase authentication**
    
-   See [docs/SUPABASE_AUTH_SETUP.md](docs/SUPABASE_AUTH_SETUP.md) for detailed instructions on:
-   - Setting up redirect URLs in Supabase dashboard
-   - Configuring authentication for dev and production
-   - Troubleshooting common auth issues
+   Add these redirect URLs in your Supabase dashboard (Authentication → URL Configuration):
+   - `http://localhost:3000/auth/callback` (for local dev)
+   - `https://coralcake.vercel.app/auth/callback` (for production)
+   - `https://*.vercel.app/auth/callback` (for preview deployments)
+   
+   See [docs/SUPABASE_AUTH_SETUP.md](docs/SUPABASE_AUTH_SETUP.md) for detailed instructions.
 
 5. **Run the development server**
    ```bash
@@ -98,7 +99,6 @@ CoralCake is optimized for deployment on Vercel:
    - Vercel will auto-detect Next.js and configure build settings
 
 2. **Set environment variables in Vercel**
-   - `NEXT_PUBLIC_SITE_URL=https://your-domain.vercel.app`
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `OPENAI_API_KEY`
@@ -106,7 +106,8 @@ CoralCake is optimized for deployment on Vercel:
    - `HELICONE_API_KEY`
 
 3. **Configure Supabase redirect URLs**
-   - Add `https://your-domain.vercel.app/auth/callback` to allowed URLs
+   - Add `https://your-domain.vercel.app/auth/callback` to allowed URLs in Supabase dashboard
+   - Authentication automatically detects the correct domain at runtime
    - See [docs/SUPABASE_AUTH_SETUP.md](docs/SUPABASE_AUTH_SETUP.md) for details
 
 4. **Deploy**
