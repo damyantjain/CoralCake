@@ -203,7 +203,7 @@ export default function ComparePage() {
                                       {metrics.error ? 'Error' : (metrics.usage?.total_tokens ?? 'N/A')}
                                     </td>
                                     <td className="py-2 px-3 text-gray-600">
-                                      {metrics.error ? 'N/A' : (metrics.cost_usd !== undefined ? `$${metrics.cost_usd.toFixed(4)}` : 'N/A')}
+                                      {metrics.error ? 'N/A' : (typeof metrics.cost_usd === 'number' ? `$${metrics.cost_usd.toFixed(4)}` : 'N/A')}
                                     </td>
                                   </tr>
                                 ))}
