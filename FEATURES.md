@@ -78,12 +78,12 @@ This document outlines the current and planned features for CoralCake, a platfor
 
 ## Planned Features
 
-### Phase 2: Response Quality Evaluation (Partially Complete ✅)
+### Phase 2: Response Quality Evaluation (Complete ✅)
 - ✅ Built-in scoring system (relevance, coherence, readability)
 - ✅ Human feedback UI (thumbs up/down, star ratings)
 - ✅ Custom evaluation script framework
-- 🔄 Feedback persistence to database (requires schema updates)
-- 🔄 Third-party validator integration (RAGAS, TruLens)
+- ✅ Feedback persistence to database (via `/api/feedback`)
+- ✅ Third-party validator integration (RAGAS, TruLens via `/api/validate`)
 
 ### Phase 3: Batch Prompt Testing
 - Bulk prompt upload (CSV, JSON)

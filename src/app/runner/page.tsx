@@ -14,7 +14,7 @@ type Result = {
   error?: string;
   evaluation?: EvaluationMetrics;
 };
-type RunResponse = { results: Result[] } | { error: string };
+type RunResponse = { results: Result[]; runId?: string } | { error: string };
 
 const AVAILABLE_MODELS = [
   { id: 'gpt-4o-mini', label: 'OpenAI: gpt-4o-mini' },
@@ -27,6 +27,7 @@ export default function RunnerPage() {
   const [selected, setSelected] = useState<string[]>([AVAILABLE_MODELS[0].id]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
+  const [runId, setRunId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   function toggleModel(id: string) {
@@ -35,16 +36,33 @@ export default function RunnerPage() {
     );
   }
 
-  function handleFeedback(model: string, thumbs: 'up' | 'down', stars?: number) {
-    // TODO: Save feedback to database via API
-    // For now, just log to console
-    console.log(`Feedback for ${model}:`, { thumbs, stars });
+  async function handleFeedback(model: string, thumbs: 'up' | 'down', stars?: number) {
+    if (!runId) {
+      console.warn('No runId available for feedback');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, model, thumbs, stars }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        console.error('Failed to save feedback:', data.error);
+      }
+    } catch (err) {
+      console.error('Failed to save feedback:', err);
+    }
   }
 
   async function onRun(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     setResults([]);
+    setRunId(null);
     if (!prompt.trim() || selected.length === 0) {
       setMsg('Enter a prompt and pick at least one model.');
       return;
@@ -61,6 +79,7 @@ export default function RunnerPage() {
         setMsg(('error' in data && data.error) || 'Run failed');
       } else {
         setResults(data.results);
+        setRunId(data.runId ?? null);
       }
     } catch (err) {
       setMsg(err instanceof Error ? err.message : String(err));
@@ -290,8 +309,9 @@ export default function RunnerPage() {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
                           <h4 className="text-sm font-semibold text-gray-900">{r.model}</h4>
-                          {!r.error && (
+                          {!r.error && runId && (
                             <FeedbackButtons 
+                              runId={runId}
                               model={r.model}
                               onFeedback={(thumbs: 'up' | 'down', stars?: number) => handleFeedback(r.model, thumbs, stars)}
                             />

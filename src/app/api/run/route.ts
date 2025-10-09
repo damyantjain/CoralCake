@@ -36,6 +36,7 @@ type RunResult = {
 
 type RunResponse = {
   results: RunResult[];
+  runId?: string;
 };
 
 type Ok = { model: string; ok: true; text: string; latency_ms: number; usage?: Usage };
@@ -178,7 +179,7 @@ export async function POST(req: Request) {
     }
 
     // 5) Respond
-    return NextResponse.json({ results } satisfies RunResponse);
+    return NextResponse.json({ results, runId: inserted?.id } satisfies RunResponse);
 
   } catch (err: unknown) {
     const message =
