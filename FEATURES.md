@@ -76,6 +76,28 @@ This document outlines the current and planned features for CoralCake, a platfor
   - Sentence capitalization
   - Sentence count and average length metrics
 
+### 8. Batch Prompt Testing ✨ NEW
+- **Location**: `/batch`
+- **Description**: Test multiple prompts at once for comprehensive benchmarking
+- **Capabilities**:
+  - **Bulk Upload**: Upload prompts via CSV or JSON files (up to 100 prompts per batch)
+  - **Parallel Execution**: Run prompts concurrently across selected models with configurable concurrency (default: 3)
+  - **Progress Tracking**: Real-time updates during batch execution
+  - **Template Download**: Pre-formatted CSV template for easy data entry
+  - **Summary Reports**: Comprehensive statistics including:
+    - Total runs and success rate
+    - Average latency across all prompts
+    - Total cost and cost per prompt
+    - Per-model performance breakdown (success/failure, latency, cost, quality scores)
+  - **Quality Evaluation**: Automatic quality scoring for all responses
+  - **Export Results**: Download batch results in CSV or JSON format
+  - **Detailed Results View**: Scrollable table with all individual prompt results
+- **Use Cases**:
+  - Benchmark different prompts across models
+  - Test prompt variations at scale
+  - Evaluate model performance on specific domains
+  - Generate comprehensive comparison reports
+
 ## Planned Features
 
 ### Phase 2: Response Quality Evaluation (Complete ✅)
@@ -85,11 +107,15 @@ This document outlines the current and planned features for CoralCake, a platfor
 - ✅ Feedback persistence to database (via `/api/feedback`)
 - ✅ Third-party validator integration (RAGAS, TruLens via `/api/validate`)
 
-### Phase 3: Batch Prompt Testing
-- Bulk prompt upload (CSV, JSON)
-- Automated benchmark runner with progress tracking
-- Summary report generation
-- Parallel execution for faster results
+### Phase 3: Batch Prompt Testing (Complete ✅)
+- ✅ Bulk prompt upload (CSV, JSON)
+- ✅ Automated benchmark runner with progress tracking
+- ✅ Summary report generation
+- ✅ Parallel execution for faster results (configurable concurrency)
+- ✅ Quality evaluation for all batch results
+- ✅ Export results to CSV or JSON
+- ✅ Per-model performance breakdown
+- ✅ Template download for easy CSV creation
 
 ### Phase 4: Prompt Engineering Playground
 - Prompt versioning and history
