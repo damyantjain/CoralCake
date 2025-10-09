@@ -279,15 +279,63 @@ Every response is checked for basic grammar issues:
 - **Readability**: Formula-based (doesn't consider context)
 - **Feedback**: Not yet persisted to database
 
+### Recently Added
+
+- ✅ Third-party validators (RAGAS, TruLens) - Use `/api/validate`
+- ✅ Feedback persistence to database
+- ✅ Validator service integration framework
+
 ### Coming Soon
 
-- ✨ Third-party validators (RAGAS, TruLens)
 - ✨ Semantic similarity scoring
 - ✨ Context-aware evaluation
-- ✨ Feedback analytics and trends
-- ✨ Custom evaluation script upload
+- ✨ Feedback analytics and trends dashboard
+- ✨ Custom evaluation script upload via UI
 
 ## API Reference
+
+### POST /api/feedback
+
+Save human feedback for a response.
+
+**Request**:
+```json
+{
+  "runId": "uuid",
+  "model": "gpt-4o",
+  "thumbs": "up",
+  "stars": 5,
+  "comment": "Great response!"
+}
+```
+
+**Response**:
+```json
+{
+  "ok": true,
+  "created": true
+}
+```
+
+### GET /api/feedback?runId={runId}
+
+Get all feedback for a specific run.
+
+**Response**:
+```json
+{
+  "feedback": [
+    {
+      "id": "uuid",
+      "run_id": "uuid",
+      "model": "gpt-4o",
+      "thumbs": "up",
+      "stars": 5,
+      "created_at": "2025-01-15T12:00:00Z"
+    }
+  ]
+}
+```
 
 ### POST /api/evaluate
 
@@ -376,6 +424,117 @@ Run custom evaluation script(s).
 }
 ```
 
+### GET /api/validate
+
+List available third-party validators.
+
+**Response**:
+```json
+{
+  "validators": [
+    {
+      "name": "ragas",
+      "available": true,
+      "mode": "service"
+    },
+    {
+      "name": "trulens",
+      "available": false,
+      "mode": "demo"
+    }
+  ]
+}
+```
+
+### POST /api/validate
+
+Run third-party validation on a response.
+
+**Request** (single validator):
+```json
+{
+  "prompt": "string",
+  "response": "string",
+  "context": ["string"],
+  "validator": "ragas"
+}
+```
+
+**Request** (all validators):
+```json
+{
+  "prompt": "string",
+  "response": "string",
+  "context": ["string"]
+}
+```
+
+**Response**:
+```json
+{
+  "results": {
+    "ragas": {
+      "validator": "ragas",
+      "overall_score": 85,
+      "metrics": {
+        "faithfulness": 0.92,
+        "answer_relevancy": 0.88
+      },
+      "timestamp": "2025-01-15T12:00:00Z",
+      "notes": "Demo mode"
+    }
+  }
+}
+```
+
+## Third-Party Validators
+
+### RAGAS
+
+RAGAS (Retrieval-Augmented Generation Assessment) evaluates RAG pipelines.
+
+**Setup**: See `src/lib/validators/README.md` for setup instructions.
+
+**Metrics**:
+- Faithfulness (0-1): Factual accuracy
+- Answer Relevancy (0-1): Relevance to question
+- Context Precision (0-1): Quality of retrieved context
+
+**Usage**:
+```bash
+POST /api/validate
+{
+  "prompt": "What is quantum computing?",
+  "response": "Quantum computing uses...",
+  "context": ["Quantum mechanics basics..."],
+  "validator": "ragas"
+}
+```
+
+### TruLens
+
+TruLens provides comprehensive LLM observability and evaluation.
+
+**Setup**: See `src/lib/validators/README.md` for setup instructions.
+
+**Metrics**:
+- Groundedness (0-1): Is response grounded in context?
+- Answer Relevance (0-1): Relevance to question
+- Toxicity (0-1): Lower is better
+- Bias (0-1): Lower is better
+
+**Usage**:
+```bash
+POST /api/validate
+{
+  "prompt": "What is quantum computing?",
+  "response": "Quantum computing uses...",
+  "validator": "trulens"
+}
+```
+
+**Note**: By default, validators run in demo mode with simulated metrics. Configure `RAGAS_ENDPOINT` and `TRULENS_ENDPOINT` environment variables to use real validator services. See validator documentation for details.
+
 ## Troubleshooting
 
 **Q: Why are all my scores low?**
@@ -388,7 +547,7 @@ A: No, some models genuinely produce more coherent, relevant responses. That's t
 A: Not yet, but custom evaluation scripts can implement any logic you need.
 
 **Q: Where is my feedback saved?**
-A: Currently client-side only. Database persistence coming soon.
+A: Feedback is now persisted to the database via the `/api/feedback` endpoint. Your ratings are saved and associated with specific runs.
 
 **Q: Can I add my own evaluation script?**
 A: Yes! Extend the `builtInScripts` object in `src/lib/evaluation/custom.ts`.
