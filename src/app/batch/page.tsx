@@ -198,7 +198,7 @@ export default function BatchPage() {
           <div className="space-y-4">
             {/* Format Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">Format</label>
               <div className="flex gap-4">
                 <label className="flex items-center">
                   <input
@@ -208,7 +208,7 @@ export default function BatchPage() {
                     onChange={(e) => setFormat(e.target.value as 'csv')}
                     className="mr-2"
                   />
-                  CSV
+                  <span className="text-sm font-medium text-gray-900">CSV</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -218,31 +218,31 @@ export default function BatchPage() {
                     onChange={(e) => setFormat(e.target.value as 'json')}
                     className="mr-2"
                   />
-                  JSON
+                  <span className="text-sm font-medium text-gray-900">JSON</span>
                 </label>
               </div>
             </div>
 
             {/* Batch Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Batch Name (optional)</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">Batch Name (optional)</label>
               <input
                 type="text"
                 value={batchName}
                 onChange={(e) => setBatchName(e.target.value)}
                 placeholder="e.g., Product descriptions test"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
               />
             </div>
 
             {/* File Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Upload File</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">Upload File</label>
               <input
                 type="file"
                 accept=".csv,.json"
                 onChange={handleFileUpload}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
               />
             </div>
 
@@ -274,7 +274,7 @@ export default function BatchPage() {
 
             {/* Model Selection */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Models</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">Select Models</label>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_MODELS.map((model) => (
                   <button
