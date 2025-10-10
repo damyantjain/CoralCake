@@ -7,6 +7,7 @@ export async function middleware(request: NextRequest) {
   // Protected routes that require authentication
   const protectedRoutes = [
     '/runner',
+    '/batch',
     '/runs-last',
     '/runs-debug',
     '/provider-test',
@@ -69,6 +70,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/runner/:path*',
+    '/batch/:path*',
     '/runs-last/:path*',
     '/runs-debug/:path*',
     '/provider-test/:path*',
