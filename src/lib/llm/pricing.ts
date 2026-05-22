@@ -16,8 +16,15 @@ export function estimateCostUSD(model: string, usage?: Usage): number | undefine
   if (!usage) return undefined;
   const p = PRICES[model];
   if (!p) return undefined;
-  const inCost  = (usage.prompt_tokens     / 1000) * p.inK;
-  const outCost = (usage.completion_tokens / 1000) * p.outK;
+  const pt = usage.prompt_tokens;
+  const ct = usage.completion_tokens;
+  if (typeof pt !== 'number' || typeof ct !== 'number') return undefined;
+  if (!Number.isFinite(pt) || !Number.isFinite(ct)) return undefined;
+  if (pt < 0 || ct < 0) return undefined;
+  const inCost = (pt / 1000) * p.inK;
+  const outCost = (ct / 1000) * p.outK;
+  const total = inCost + outCost;
+  if (!Number.isFinite(total)) return undefined;
   // round to 6 decimal places (1/1,000,000th) to handle micro-costs accurately
-  return Math.round((inCost + outCost) * 1000000) / 1000000;
+  return Math.round(total * 1000000) / 1000000;
 }

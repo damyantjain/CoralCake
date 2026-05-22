@@ -54,7 +54,7 @@ export async function PATCH(
       console.error('[api/benchmarks] update failed:', error);
       return NextResponse.json(
         { error: 'Could not update benchmark', code: 'DB_ERROR' },
-        { status: 400 },
+        { status: 500 },
       );
     }
 

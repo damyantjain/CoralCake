@@ -1,29 +1,53 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
 function LoginPageComponent() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
+  const searchParams = useSearchParams();
 
   async function onSendLink(e: React.FormEvent) {
     e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setIsError(true);
+      setMsg('Enter your email.');
+      return;
+    }
     setLoading(true);
     setMsg(null);
+    setIsError(false);
+
+    // Forward the original target through to /auth/callback, but only
+    // accept relative same-origin paths (no //evil.com style escapes).
+    const rawRedirect = searchParams.get('redirectTo');
+    const safeRedirect =
+      rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+        ? rawRedirect
+        : '/';
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
+    const callbackUrl = `${origin}/auth/callback?redirectTo=${encodeURIComponent(safeRedirect)}`;
 
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: trimmed,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}`
-      }
+        emailRedirectTo: callbackUrl,
+      },
     });
 
     setLoading(false);
     if (error) {
+      setIsError(true);
       setMsg(error.message);
     } else {
+      setIsError(false);
       setMsg('Check your email for the sign-in link.');
       setEmail('');
     }
@@ -60,8 +84,11 @@ function LoginPageComponent() {
             </div>
 
             {msg && (
-              <div className={`rounded-md p-4 ${msg.includes('error') || msg.includes('Error') ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'}`}>
-                <div className={`text-sm ${msg.includes('error') || msg.includes('Error') ? 'text-red-800' : 'text-emerald-800'}`}>
+              <div
+                role={isError ? 'alert' : 'status'}
+                className={`rounded-md p-4 ${isError ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'}`}
+              >
+                <div className={`text-sm ${isError ? 'text-red-800' : 'text-emerald-800'}`}>
                   {msg}
                 </div>
               </div>

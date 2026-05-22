@@ -24,13 +24,20 @@ export default function Header() {
 
   async function onSendLink(e: React.FormEvent) {
     e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setMsg('Enter your email.');
+      return;
+    }
     setLoading(true);
     setMsg(null);
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: trimmed,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}`
-      }
+        emailRedirectTo: `${origin}/auth/callback`,
+      },
     });
     setLoading(false);
     setMsg(error ? error.message : 'Check your email for the sign-in link.');

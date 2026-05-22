@@ -56,6 +56,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'comment must be a string' }, { status: 400 });
     }
 
+    const MAX_COMMENT_LEN = 2000;
+    if (typeof comment === 'string' && comment.length > MAX_COMMENT_LEN) {
+      return NextResponse.json(
+        { error: `comment must be at most ${MAX_COMMENT_LEN} characters` },
+        { status: 400 },
+      );
+    }
+
+    const MAX_RUN_ID_LEN = 100;
+    const MAX_MODEL_LEN = 100;
+    if (runId.length === 0 || runId.length > MAX_RUN_ID_LEN || model.length === 0 || model.length > MAX_MODEL_LEN) {
+      return NextResponse.json({ error: 'Invalid runId or model' }, { status: 400 });
+    }
+
     // 3) Check if feedback already exists for this run/model combination
     const { data: existing } = await supabase
       .from('feedback')
@@ -66,7 +80,9 @@ export async function POST(req: Request) {
       .single();
 
     if (existing) {
-      // Update existing feedback
+      // Update existing feedback — re-assert user_id on UPDATE so the
+      // write is atomically scoped to the caller's rows even if `existing`
+      // is stale.
       const { error } = await supabase
         .from('feedback')
         .update({
@@ -75,11 +91,12 @@ export async function POST(req: Request) {
           comment,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', existing.id);
+        .eq('id', existing.id)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('[api/feedback] update failed:', error);
-        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 400 });
+        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 500 });
       }
 
       return NextResponse.json({ ok: true, updated: true });
@@ -96,7 +113,7 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error('[api/feedback] insert failed:', error);
-        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 400 });
+        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 500 });
       }
 
       return NextResponse.json({ ok: true, created: true });
@@ -137,7 +154,7 @@ export async function GET(req: Request) {
 
     if (error) {
       console.error('[api/feedback] GET query failed:', error);
-      return NextResponse.json({ error: 'Could not load feedback', code: 'DB_ERROR' }, { status: 400 });
+      return NextResponse.json({ error: 'Could not load feedback', code: 'DB_ERROR' }, { status: 500 });
     }
 
     return NextResponse.json({ feedback: data ?? [] });

@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
   const protectedRoutes = [
     '/runner',
     '/runs-last',
+    '/compare',
   ];
 
   // Check if the current path requires authentication
@@ -67,5 +68,6 @@ export const config = {
   matcher: [
     '/runner/:path*',
     '/runs-last/:path*',
+    '/compare/:path*',
   ],
 };

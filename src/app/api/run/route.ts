@@ -80,9 +80,41 @@ export async function POST(req: Request) {
     }
 
     // 3) Validate payload
-    const { prompt, models }: RunRequest = await req.json();
-    if (typeof prompt !== 'string' || !Array.isArray(models) || models.length === 0) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+    const { prompt, models } = (body ?? {}) as Partial<RunRequest>;
+    if (
+      typeof prompt !== 'string' ||
+      !Array.isArray(models) ||
+      models.length === 0
+    ) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+    const MAX_PROMPT_LEN = 8000;
+    const MAX_MODELS = 10;
+    const MAX_MODEL_NAME_LEN = 100;
+    if (prompt.length === 0 || prompt.length > MAX_PROMPT_LEN) {
+      return NextResponse.json(
+        { error: `prompt must be 1-${MAX_PROMPT_LEN} characters` },
+        { status: 400 },
+      );
+    }
+    if (models.length > MAX_MODELS) {
+      return NextResponse.json(
+        { error: `Too many models (max ${MAX_MODELS})` },
+        { status: 400 },
+      );
+    }
+    if (
+      !models.every(
+        (m) => typeof m === 'string' && m.length > 0 && m.length <= MAX_MODEL_NAME_LEN,
+      )
+    ) {
+      return NextResponse.json({ error: 'Invalid model in models array' }, { status: 400 });
     }
 
     // 3) Fan out calls in parallel (per model)

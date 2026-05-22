@@ -10,8 +10,13 @@ function AuthCallbackComponent() {
 
   useEffect(() => {
     (async () => {
-      // Get the intended redirect destination from query params
-      const redirectTo = searchParams.get('redirectTo') || '/';
+      // Only honor relative same-origin redirects — refuse anything that
+      // could send the user (and their fresh session) to a third party.
+      const rawRedirect = searchParams.get('redirectTo');
+      const redirectTo =
+        rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+          ? rawRedirect
+          : '/';
 
       // Parse tokens from the URL hash fragment: #access_token=...&refresh_token=...
       const hash = window.location.hash.startsWith('#')
@@ -55,11 +60,12 @@ function AuthCallbackComponent() {
 
       // 4) Signal to other tabs that auth succeeded and close this tab if it was opened from another tab
       try {
-        // Signal success to other tabs via localStorage
+        // Signal success to other tabs via localStorage. Do NOT include the
+        // access token — that's a bearer credential and putting it in
+        // localStorage exposes it to any XSS in the app.
         localStorage.setItem('coralcake_auth_success', JSON.stringify({
           timestamp: Date.now(),
           redirectTo,
-          userEmail: access_token // We'll extract user info from token if needed
         }));
 
         // Clean up localStorage after 15 seconds to prevent stale data

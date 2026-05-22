@@ -1,4 +1,6 @@
 // Minimal OpenAI->Helicone helper using fetch (SDK-agnostic)
+import { withTimeout } from '../utils';
+
 export type LLMResult = {
   text: string;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
@@ -17,7 +19,7 @@ export async function callOpenAIViaHelicone({
 }): Promise<LLMResult> {
   const t0 = Date.now();
 
-  const res = await fetch('https://oai.helicone.ai/v1/chat/completions', {
+  const fetchPromise = fetch('https://oai.helicone.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -31,6 +33,8 @@ export async function callOpenAIViaHelicone({
     },
     body: JSON.stringify({ model, messages }),
   });
+
+  const res = await withTimeout(fetchPromise, 30_000);
 
   const latency_ms = Date.now() - t0;
   const text = await res.text();

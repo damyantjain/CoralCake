@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
   if (error) {
     console.error('[api/runs] insert failed:', error);
-    return NextResponse.json({ error: 'Could not save run', code: 'DB_ERROR' }, { status: 400 });
+    return NextResponse.json({ error: 'Could not save run', code: 'DB_ERROR' }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }
@@ -51,12 +51,13 @@ export async function GET() {
   const { data, error } = await supabase
     .from('runs')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(20);
 
   if (error) {
     console.error('[api/runs] query failed:', error);
-    return NextResponse.json({ error: 'Could not load runs', code: 'DB_ERROR' }, { status: 400 });
+    return NextResponse.json({ error: 'Could not load runs', code: 'DB_ERROR' }, { status: 500 });
   }
   return NextResponse.json({ runs: data ?? [] });
 }

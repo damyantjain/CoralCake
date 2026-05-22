@@ -140,7 +140,19 @@ export default function RunnerPage() {
         r.text?.length || '',
         r.error ? 'Error' : 'Success'
       ]);
-      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const escapeCsvCell = (v: unknown): string => {
+        const s = v === undefined || v === null ? '' : String(v);
+        // Mitigate CSV injection in spreadsheet apps (formula prefixes).
+        const needsFormulaGuard = /^[=+\-@\t\r]/.test(s);
+        const safe = needsFormulaGuard ? `'${s}` : s;
+        if (/[",\r\n]/.test(safe)) {
+          return `"${safe.replace(/"/g, '""')}"`;
+        }
+        return safe;
+      };
+      const csv = [headers, ...rows]
+        .map(row => row.map(escapeCsvCell).join(','))
+        .join('\r\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

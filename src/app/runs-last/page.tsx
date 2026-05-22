@@ -13,10 +13,13 @@ export default async function LastRunPage() {
     return null;
   }
 
-  // fetch most recent run
+  // fetch most recent run for this user
+  // (RLS now also exposes runs linked to public benchmarks, so the
+  // user_id filter is required to keep this scoped to the caller.)
   const { data: runs } = await supabase
     .from('runs')
     .select('id,prompt,created_at,models,metrics')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1);
 

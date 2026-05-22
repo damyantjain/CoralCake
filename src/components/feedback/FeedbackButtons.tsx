@@ -12,20 +12,30 @@ export function FeedbackButtons({ onFeedback }: FeedbackButtonsProps) {
   const [thumbs, setThumbs] = useState<'up' | 'down' | null>(null);
   const [stars, setStars] = useState<number>(0);
   const [showStars, setShowStars] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const send = async (
+    thumbsValue: 'up' | 'down' | null,
+    starsValue: number,
+  ) => {
+    if (busy || !onFeedback || !thumbsValue) return;
+    setBusy(true);
+    try {
+      onFeedback(thumbsValue, starsValue > 0 ? starsValue : undefined);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleThumbsClick = (value: 'up' | 'down') => {
     const newValue = thumbs === value ? null : value;
     setThumbs(newValue);
-    if (newValue && onFeedback) {
-      onFeedback(newValue, stars > 0 ? stars : undefined);
-    }
+    void send(newValue, stars);
   };
 
   const handleStarClick = (value: number) => {
     setStars(value);
-    if (onFeedback && thumbs) {
-      onFeedback(thumbs, value);
-    }
+    void send(thumbs, value);
   };
 
   return (
@@ -33,8 +43,12 @@ export function FeedbackButtons({ onFeedback }: FeedbackButtonsProps) {
       {/* Thumbs Up/Down */}
       <div className="flex items-center gap-2">
         <button
+          type="button"
+          aria-label="Good response"
+          aria-pressed={thumbs === 'up'}
+          disabled={busy}
           onClick={() => handleThumbsClick('up')}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
             thumbs === 'up'
               ? 'bg-green-100 text-green-600'
               : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
@@ -46,8 +60,12 @@ export function FeedbackButtons({ onFeedback }: FeedbackButtonsProps) {
           </svg>
         </button>
         <button
+          type="button"
+          aria-label="Poor response"
+          aria-pressed={thumbs === 'down'}
+          disabled={busy}
           onClick={() => handleThumbsClick('down')}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
             thumbs === 'down'
               ? 'bg-red-100 text-red-600'
               : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
@@ -62,6 +80,8 @@ export function FeedbackButtons({ onFeedback }: FeedbackButtonsProps) {
 
       {/* Star Rating Toggle */}
       <button
+        type="button"
+        aria-expanded={showStars}
         onClick={() => setShowStars(!showStars)}
         className="text-xs text-gray-600 hover:text-gray-900 font-medium"
       >
@@ -70,12 +90,17 @@ export function FeedbackButtons({ onFeedback }: FeedbackButtonsProps) {
 
       {/* Star Rating */}
       {showStars && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Rate response">
           {[1, 2, 3, 4, 5].map((value) => (
             <button
+              type="button"
               key={value}
+              role="radio"
+              aria-checked={stars === value}
+              aria-label={`${value} star${value === 1 ? '' : 's'}`}
+              disabled={busy}
               onClick={() => handleStarClick(value)}
-              className="text-yellow-400 hover:text-yellow-500 transition-colors"
+              className="text-yellow-400 hover:text-yellow-500 transition-colors disabled:opacity-50"
             >
               <svg
                 className="w-5 h-5"

@@ -57,20 +57,18 @@ export function calculateReadability(text: string): number {
  */
 function countSyllables(text: string): number {
   const words = text.toLowerCase().split(/\s+/);
-  let count = 0;
+  let total = 0;
 
   for (const word of words) {
     if (word.length === 0) continue;
-    // Count vowel groups as syllables
     const vowelGroups = word.match(/[aeiouy]+/g);
-    count += vowelGroups ? vowelGroups.length : 1;
-    // Subtract silent 'e' at end
-    if (word.endsWith('e') && word.length > 2) count--;
-    // Ensure at least 1 syllable per word
-    if (count === 0) count = 1;
+    let wordSyllables = vowelGroups ? vowelGroups.length : 1;
+    if (word.endsWith('e') && word.length > 2) wordSyllables--;
+    if (wordSyllables < 1) wordSyllables = 1;
+    total += wordSyllables;
   }
 
-  return count;
+  return total;
 }
 
 /**
@@ -107,14 +105,15 @@ export function calculateCoherence(text: string): number {
     'also',
     'likewise',
   ];
-  const lowerText = text.toLowerCase();
-  const transitionCount = transitionWords.filter((word) => lowerText.includes(word)).length;
+  const tokens = text.toLowerCase().match(/[a-z]+/g) ?? [];
+  const tokenSet = new Set(tokens);
+  const transitionCount = transitionWords.filter((word) => tokenSet.has(word)).length;
   const transitionScore = Math.min(100, (transitionCount / sentences.length) * 100 * 5);
 
   // Weighted average
   const score = consistencyScore * 0.7 + transitionScore * 0.3;
 
-  return Math.round(score);
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 /**

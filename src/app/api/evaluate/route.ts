@@ -35,7 +35,12 @@ export async function POST(req: Request) {
     }
 
     // Validate payload
-    const body: unknown = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
     if (
       typeof body !== 'object' ||
       body === null ||
@@ -49,6 +54,21 @@ export async function POST(req: Request) {
 
     if (typeof prompt !== 'string' || typeof response !== 'string') {
       return NextResponse.json({ error: 'Invalid payload: prompt and response must be strings' }, { status: 400 });
+    }
+
+    const MAX_PROMPT_LEN = 8000;
+    const MAX_RESPONSE_LEN = 50000;
+    if (prompt.length === 0 || prompt.length > MAX_PROMPT_LEN) {
+      return NextResponse.json(
+        { error: `prompt must be 1-${MAX_PROMPT_LEN} characters` },
+        { status: 400 },
+      );
+    }
+    if (response.length > MAX_RESPONSE_LEN) {
+      return NextResponse.json(
+        { error: `response must be at most ${MAX_RESPONSE_LEN} characters` },
+        { status: 400 },
+      );
     }
 
     // Evaluate
