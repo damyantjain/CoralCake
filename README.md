@@ -1,88 +1,47 @@
 # CoralCake
 
-CoralCake is a professional platform designed to compare the performance of various Large Language Models (LLMs) in real-time. It empowers developers, researchers, and organizations to run prompts across multiple LLM providers and evaluate their performance, latency, token usage, and associated costs.
+> See where models disagree on your prompt.
 
-## What is CoralCake?
+CoralCake runs the same prompt across multiple LLMs and shows you what they agreed on, what they didn't, and what each one cost you in latency and dollars. Use it when you're choosing a model for a new feature and the headline benchmarks don't answer the specific question you have.
 
-CoralCake enables you to:
-- Run the same prompt across leading LLMs (including OpenAI and Mistral models)
-- Instantly compare response time, cost, and token consumption for each model
-- Export results in CSV or JSON format for further analysis
-- Compare historical test runs side-by-side
-- Track performance trends and optimize model selection
-- Gain actionable insights for model selection based on real-world requirements
+**Live app:** [coralcake.vercel.app](https://coralcake.vercel.app)
 
-Whether you are evaluating LLMs for integration, optimizing prompt engineering, or simply exploring new models, CoralCake streamlines benchmarking and decision-making.
+## What it does today
 
-## Key Features
+- Run one prompt across `gpt-4o`, `gpt-4o-mini`, and `mistral-small` (via Helicone).
+- Side-by-side responses with latency, tokens, cost (USD), and heuristic quality scores (relevance / coherence / readability).
+- Thumbs, stars, and comments per response, persisted to your account.
+- Historical view of past runs at `/compare`.
+- CSV / JSON export.
 
-- **Multi-Model Comparison**: Test prompts across OpenAI, Mistral, and more
-- **Performance Metrics**: Track latency, token usage, and cost in real-time
-- **Export Capabilities**: Download results as CSV or JSON
-- **Historical Analysis**: Compare past runs and track trends over time
-- **Cost Tracking**: Transparent pricing for informed decisions
-- **User-Friendly Interface**: Clean, intuitive design for quick insights
+See [FEATURES.md](./FEATURES.md) for the full surface, [ROADMAP.md](./ROADMAP.md) for where it's going, and [SECURITY.md](./SECURITY.md) for the disclosure policy.
 
-## Technologies Used
+## Running locally
 
-- **Next.js**: Modern React framework for fast, scalable web applications
-- **Supabase**: Backend as a Service for authentication and data storage
-- **TypeScript**: Type-safe JavaScript for improved reliability
-- **Doppler**: Secret management for environment variables
-- **OpenAI & Mistral APIs**: Integration to leading LLM providers
-- **Helicone**: API proxy for tracking usage and latency
-
-## Use Cases
-
-- **Prompt Benchmarking**: Compare LLMs side-by-side to identify the most cost-effective and performant model for your application.
-- **Model Evaluation**: Test new LLMs as they are released and monitor their capabilities.
-- **Cost Analysis**: Estimate and control token and monetary costs associated with different models.
-- **Latency Testing**: Measure response times under real-world conditions.
-- **AI Product Development**: Integrate LLM performance insights into your product workflow.
-
----
-
-## Getting Started
-
-### For Users
-
-Visit the live app at: [https://coralcake.vercel.app](https://coralcake.vercel.app)
-
-### For Developers
-
-Want to contribute or run CoralCake locally? See our development guides:
-
-- **[Development Guide](./docs/DEVELOPMENT.md)** - Complete setup instructions for local development
-- **[Copilot Agent Setup](./docs/COPILOT_AGENT_SETUP.md)** - Guide for GitHub Copilot agents
-- **[Usage Guide](./docs/USAGE_GUIDE.md)** - How to use CoralCake features
-- **[Implementation Notes](./docs/IMPLEMENTATION_NOTES.md)** - Technical implementation details
-
-Quick start:
 ```bash
-# Clone the repository
-git clone https://github.com/damyantjain/CoralCake.git
+git clone git@github.com:damyantjain/CoralCake.git
 cd CoralCake
-
-# Install dependencies
-npm ci
-
-# Copy environment variables template
+npm install              # also wires the lefthook pre-commit hook
 cp .env.example .env.local
-# Edit .env.local with your API keys (see Development Guide)
-
-# Run development server
+# fill in OPENAI_API_KEY, MISTRAL_API_KEY, HELICONE_API_KEY,
+# NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY at minimum.
 npm run dev
 ```
 
----
+Full setup, including how to get each key and how to run the Supabase schema, is in [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md). Secret-management norms are in [docs/SECRET_MANAGEMENT.md](./docs/SECRET_MANAGEMENT.md).
+
+## Tech stack
+
+Next.js 15 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind v4 · Supabase (Postgres + Auth + RLS) · Upstash Redis (rate limiting) · Helicone (LLM proxy)
 
 ## Contributing
 
-We welcome contributions! Before submitting a PR:
+Issues and PRs welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a PR — the short version is: read [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md), keep changes focused, run `npm run lint && npx tsc --noEmit` before submitting, and check [ROADMAP.md](./ROADMAP.md) so we don't end up duplicating work.
 
-1. Read the [Development Guide](./docs/DEVELOPMENT.md)
-2. Follow the [Copilot Instructions](./.github/copilot-instructions.md)
-3. Ensure lint and typecheck pass: `npm run lint && npx tsc --noEmit`
-4. Keep changes small and focused
+## Security
 
----
+Found a vulnerability? Please don't open a public issue — see [SECURITY.md](./SECURITY.md) for the private disclosure process.
+
+## License
+
+This project is currently published without a license file. See the repo's GitHub page for the latest status. If you'd like to use the code in your own project, please open an issue first.
