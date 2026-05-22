@@ -16,7 +16,7 @@ A snapshot of the current feature set. For where the project is going, see [ROAD
 
 On `/runner` you can:
 
-- Enter a prompt and pick from `gpt-4o`, `gpt-4o-mini`, `mistral-small`.
+- Enter a prompt and pick from `gpt-5`, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini`, `mistral-small`.
 - Get a side-by-side response card per model with latency, prompt/completion/total tokens, and estimated cost in USD.
 - See heuristic quality scores per response: relevance, coherence, readability, and a weighted overall (computed in `src/lib/evaluation/scoring.ts`).
 - Leave a thumbs up/down, a 1–5 star rating, or a comment on each response (persisted per user via `/api/feedback`).
@@ -30,7 +30,7 @@ LLM calls go through the [Helicone](https://helicone.ai) proxy for usage trackin
 
 | Provider | Models | Pricing source |
 | --- | --- | --- |
-| OpenAI | `gpt-4o`, `gpt-4o-mini` | `src/lib/llm/pricing.ts` |
+| OpenAI | `gpt-5`, `gpt-5-mini`, `gpt-4o`, `gpt-4o-mini` | `src/lib/llm/pricing.ts` |
 | Mistral | `mistral-small` | `src/lib/llm/pricing.ts` |
 
 Pricing is hardcoded and reviewed manually — see the dated tests in `src/lib/llm/__tests__/pricing.test.ts`.

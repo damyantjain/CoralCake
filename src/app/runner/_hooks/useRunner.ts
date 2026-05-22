@@ -29,10 +29,15 @@ type RunResponse =
     }
   | { error: string };
 
-export const AVAILABLE_MODELS = [
-  { id: 'gpt-4o-mini', label: 'OpenAI: gpt-4o-mini' },
-  { id: 'gpt-4o', label: 'OpenAI: gpt-4o' },
-  { id: 'mistral-small', label: 'Mistral: mistral-small' },
+export type Provider = 'OpenAI' | 'Mistral';
+export type ModelOption = { id: string; label: string; provider: Provider };
+
+export const AVAILABLE_MODELS: readonly ModelOption[] = [
+  { id: 'gpt-5', label: 'gpt-5', provider: 'OpenAI' },
+  { id: 'gpt-5-mini', label: 'gpt-5-mini', provider: 'OpenAI' },
+  { id: 'gpt-4o', label: 'gpt-4o', provider: 'OpenAI' },
+  { id: 'gpt-4o-mini', label: 'gpt-4o-mini', provider: 'OpenAI' },
+  { id: 'mistral-small', label: 'mistral-small', provider: 'Mistral' },
 ] as const;
 
 export function useRunner() {

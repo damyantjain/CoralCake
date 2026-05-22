@@ -4,6 +4,16 @@ import { estimateCostUSD } from '../pricing';
 describe('estimateCostUSD', () => {
   const usage = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 };
 
+  it('prices gpt-5 at the documented $1.25/$10.00 per 1M', () => {
+    // (100/1000 * 0.00125) + (50/1000 * 0.01) = 0.000125 + 0.0005 = 0.000625
+    expect(estimateCostUSD('gpt-5', usage)).toBeCloseTo(0.000625, 6);
+  });
+
+  it('prices gpt-5-mini at the documented $0.25/$2.00 per 1M', () => {
+    // (100/1000 * 0.00025) + (50/1000 * 0.002) = 0.000025 + 0.0001 = 0.000125
+    expect(estimateCostUSD('gpt-5-mini', usage)).toBeCloseTo(0.000125, 6);
+  });
+
   it('prices gpt-4o-mini at the documented $0.15/$0.60 per 1M', () => {
     // (100/1000 * 0.00015) + (50/1000 * 0.00060) = 0.000045
     expect(estimateCostUSD('gpt-4o-mini', usage)).toBeCloseTo(0.000045, 6);

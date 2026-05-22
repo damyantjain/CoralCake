@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import axe, { type AxeResults } from 'axe-core';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ModelPicker } from '../ModelPicker';
@@ -9,6 +9,7 @@ import { ResultCard } from '../ResultCard';
 import { ResultsTable } from '../ResultsTable';
 import { PromptForm } from '../PromptForm';
 import { EvaluationChips } from '../EvaluationChips';
+import { AVAILABLE_MODELS } from '../../_hooks/useRunner';
 
 async function runAxe(container: HTMLElement): Promise<AxeResults> {
   return axe.run(container, {
@@ -47,10 +48,11 @@ describe('a11y — runner components', () => {
       withProviders(
         <ModelPicker
           models={[
-            { id: 'gpt-4o', label: 'OpenAI: gpt-4o' },
-            { id: 'gpt-4o-mini', label: 'OpenAI: gpt-4o-mini' },
+            { id: 'gpt-5', label: 'gpt-5', provider: 'OpenAI' },
+            { id: 'gpt-4o', label: 'gpt-4o', provider: 'OpenAI' },
+            { id: 'mistral-small', label: 'mistral-small', provider: 'Mistral' },
           ]}
-          selected={['gpt-4o']}
+          selected={['gpt-5']}
           onToggle={() => {}}
         />,
       ),
@@ -176,6 +178,38 @@ describe('a11y — runner components', () => {
       ),
     );
     expectNoSeriousViolations(await runAxe(container));
+  });
+
+  it('renders the real AVAILABLE_MODELS list grouped by provider', () => {
+    render(
+      withProviders(
+        <ModelPicker
+          models={AVAILABLE_MODELS}
+          selected={[AVAILABLE_MODELS[0].id]}
+          onToggle={() => {}}
+        />,
+      ),
+    );
+
+    // Provider subheadings render in the expected order.
+    const headings = screen.getAllByRole('heading', { level: 3 });
+    expect(headings.map((h) => h.textContent)).toEqual(['OpenAI', 'Mistral']);
+
+    // Both new gpt-5 entries are present and selectable.
+    expect(screen.getByLabelText('Compare OpenAI gpt-5')).toBeDefined();
+    expect(screen.getByLabelText('Compare OpenAI gpt-5-mini')).toBeDefined();
+    expect(screen.getByLabelText('Compare OpenAI gpt-4o')).toBeDefined();
+    expect(screen.getByLabelText('Compare OpenAI gpt-4o-mini')).toBeDefined();
+    expect(screen.getByLabelText('Compare Mistral mistral-small')).toBeDefined();
+
+    // OpenAI group has 4 models, Mistral has 1.
+    const groups = screen.getAllByRole('group');
+    const openai = groups.find((g) => g.getAttribute('aria-label') === 'OpenAI models');
+    const mistral = groups.find((g) => g.getAttribute('aria-label') === 'Mistral models');
+    expect(openai).toBeDefined();
+    expect(mistral).toBeDefined();
+    expect(within(openai!).getAllByRole('checkbox').length).toBe(4);
+    expect(within(mistral!).getAllByRole('checkbox').length).toBe(1);
   });
 
   it('PromptForm has no critical/serious violations', async () => {
