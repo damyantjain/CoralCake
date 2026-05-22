@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/server';
 import { callOpenAIViaHelicone, type LLMResult } from '@/lib/llm/openaiFetch';
 import { callMistralViaHelicone } from '@/lib/llm/mistralFetch';
 import { estimateCostUSD, type Usage } from '@/lib/llm/pricing';
-import { withTimeout } from '@/lib/utils';
+import { withTimeout, generateSlug } from '@/lib/utils';
 import { evaluateResponse } from '@/lib/evaluation/scoring';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
+import { computeDisagreement } from '@/lib/evaluation/disagreement';
 import {
   checkRateLimit,
   clientIp,
@@ -44,6 +45,8 @@ type RunResult = {
 type RunResponse = {
   results: RunResult[];
   runId?: string;
+  benchmarkSlug?: string;
+  disagreementScore?: number | null;
 };
 
 type Ok = { model: string; ok: true; text: string; latency_ms: number; usage?: Usage };
@@ -203,8 +206,30 @@ export async function POST(req: Request) {
         }
     }
 
-    // 5) Respond
-    return NextResponse.json({ results, runId: inserted?.id } satisfies RunResponse);
+    // 5) Save a benchmark row so this run has a stable /b/[slug] URL.
+    // Non-fatal: a benchmark save failure shouldn't block the run from
+    // being returned to the client.
+    const disagreementScore = computeDisagreement(
+      results.map((r) => ({ text: r.text, error: r.error })),
+    );
+    let benchmarkSlug: string | undefined;
+    if (inserted?.id) {
+      benchmarkSlug = await saveBenchmark(supabase, {
+        ownerId: user.id,
+        runId: inserted.id,
+        prompt,
+        models,
+        disagreementScore,
+      });
+    }
+
+    // 6) Respond
+    return NextResponse.json({
+      results,
+      runId: inserted?.id,
+      benchmarkSlug,
+      disagreementScore,
+    } satisfies RunResponse);
 
   } catch (err: unknown) {
     console.error('[api/run] unexpected failure:', err);
@@ -213,4 +238,60 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+type SaveBenchmarkArgs = {
+  ownerId: string;
+  runId: string;
+  prompt: string;
+  models: string[];
+  disagreementScore: number | null;
+};
+
+// Insert a benchmark row and back-link runs.benchmark_id. Returns the slug
+// or undefined if everything failed; never throws (callers treat benchmark
+// save as best-effort).
+async function saveBenchmark(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: SaveBenchmarkArgs,
+): Promise<string | undefined> {
+  // Retry on slug collisions (extremely unlikely with 8 random bytes,
+  // but the unique constraint should never crash a real user run).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const slug = generateSlug();
+    const { data, error } = await supabase
+      .from('benchmarks')
+      .insert({
+        slug,
+        owner_id: args.ownerId,
+        run_id: args.runId,
+        prompt: args.prompt,
+        models: args.models,
+        disagreement_score: args.disagreementScore,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      // 23505 = postgres unique_violation. Anything else, bail.
+      if ((error as { code?: string }).code === '23505') continue;
+      console.error('[api/run] benchmark insert failed:', error);
+      return undefined;
+    }
+
+    if (!data?.id) return undefined;
+
+    const { error: linkErr } = await supabase
+      .from('runs')
+      .update({ benchmark_id: data.id })
+      .eq('id', args.runId);
+    if (linkErr) {
+      // The benchmark row exists; the back-link is best-effort.
+      console.error('[api/run] runs.benchmark_id link failed:', linkErr);
+    }
+
+    return slug;
+  }
+  console.error('[api/run] benchmark slug collisions exhausted; gave up');
+  return undefined;
 }
