@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { PublishToggle } from '@/components/PublishToggle';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 type PerModelMetrics = {
   latency_ms?: number;
@@ -20,6 +26,7 @@ type BenchmarkRow = {
   is_public: boolean;
   created_at: string;
   run_id: string;
+  owner_id: string;
 };
 
 type RunRow = {
@@ -41,13 +48,18 @@ export default async function BenchmarkPage({
 
   const { data: benchmark } = await supabase
     .from('benchmarks')
-    .select('id, slug, prompt, models, disagreement_score, is_public, created_at, run_id')
+    .select('id, slug, prompt, models, disagreement_score, is_public, created_at, run_id, owner_id')
     .eq('slug', slug)
     .maybeSingle<BenchmarkRow>();
 
   // RLS hides private benchmarks from non-owners. Treat both "no row" and
   // "RLS-denied" as 404 so we don't leak the existence of private slugs.
   if (!benchmark) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isOwner = user?.id === benchmark.owner_id;
 
   const [{ data: run }, { data: outputs }] = await Promise.all([
     supabase
@@ -67,14 +79,22 @@ export default async function BenchmarkPage({
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <header className="mb-6 border-b border-gray-200 pb-4">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
-          <span>Benchmark</span>
-          <span>·</span>
-          <span>{new Date(benchmark.created_at).toLocaleString()}</span>
-          {!benchmark.is_public && (
-            <span className="ml-2 px-2 py-0.5 rounded bg-gray-100 text-gray-600 normal-case tracking-normal">
-              private
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+            <span>Benchmark</span>
+            <span>·</span>
+            <span>{new Date(benchmark.created_at).toLocaleString()}</span>
+            {!benchmark.is_public && !isOwner && (
+              <span className="ml-2 px-2 py-0.5 rounded bg-gray-100 text-gray-600 normal-case tracking-normal">
+                private
+              </span>
+            )}
+          </div>
+          {isOwner && (
+            <PublishToggle
+              benchmarkId={benchmark.id}
+              initialIsPublic={benchmark.is_public}
+            />
           )}
         </div>
         <h1 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
