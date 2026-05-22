@@ -1,190 +1,94 @@
-# Database Schema Documentation
+# Database Schema
 
-This document describes the required database schema for CoralCake's Phase 2 features.
+The canonical schema lives in [`supabase/migrations/0001_initial_schema.sql`](../supabase/migrations/0001_initial_schema.sql). To bootstrap a new Supabase project, paste that file into the SQL editor in Supabase Studio and run it once. The file is idempotent — safe to re-run if you only got partway through.
+
+This document describes what's in that file, table by table, and is updated whenever the migration changes.
 
 ## Tables
 
-### `feedback` (NEW - Phase 2)
-
-Stores human feedback for LLM responses.
-
-**Purpose**: Persist user ratings and feedback for specific run/model combinations to enable feedback analytics and quality tracking over time.
-
-**Schema**:
-
-```sql
-CREATE TABLE feedback (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-  model TEXT NOT NULL,
-  thumbs TEXT CHECK (thumbs IN ('up', 'down')),
-  stars INTEGER CHECK (stars >= 1 AND stars <= 5),
-  comment TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, run_id, model)
-);
-
--- Index for efficient queries
-CREATE INDEX idx_feedback_user_id ON feedback(user_id);
-CREATE INDEX idx_feedback_run_id ON feedback(run_id);
-CREATE INDEX idx_feedback_created_at ON feedback(created_at DESC);
-```
-
-**Row-Level Security (RLS)**:
-
-```sql
--- Enable RLS
-ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
-
--- Users can only read their own feedback
-CREATE POLICY "Users can read own feedback"
-  ON feedback FOR SELECT
-  USING (auth.uid() = user_id);
-
--- Users can insert their own feedback
-CREATE POLICY "Users can insert own feedback"
-  ON feedback FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
--- Users can update their own feedback
-CREATE POLICY "Users can update own feedback"
-  ON feedback FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- Users can delete their own feedback
-CREATE POLICY "Users can delete own feedback"
-  ON feedback FOR DELETE
-  USING (auth.uid() = user_id);
-```
-
-**Column Descriptions**:
-
-- `id`: Primary key (UUID)
-- `user_id`: Foreign key to auth.users table, identifies who gave the feedback
-- `run_id`: Foreign key to runs table, identifies which run this feedback is for
-- `model`: The specific model being rated (e.g., "gpt-4o", "mistral-small")
-- `thumbs`: Optional thumbs up/down rating ('up' or 'down')
-- `stars`: Optional 1-5 star rating
-- `comment`: Optional text comment (for future use)
-- `created_at`: Timestamp when feedback was first created
-- `updated_at`: Timestamp when feedback was last updated
-
-**Constraints**:
-
-- Unique constraint on (user_id, run_id, model) ensures only one feedback entry per user/run/model combination
-- `thumbs` can only be 'up' or 'down'
-- `stars` must be between 1 and 5
-- Foreign key cascade on DELETE ensures feedback is removed when user or run is deleted
-
-## Existing Tables (Reference)
-
 ### `runs`
 
-Stores metadata about each LLM comparison run.
+One row per LLM comparison executed via `/api/run`.
 
-```sql
--- Simplified schema (existing)
-CREATE TABLE runs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id),
-  prompt TEXT NOT NULL,
-  models TEXT[] NOT NULL,
-  metrics JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK → `auth.users(id)`, cascade delete |
+| `prompt` | TEXT | The prompt text |
+| `models` | TEXT[] | Models selected for the run |
+| `metrics` | JSONB | Per-model latency, tokens, cost, evaluation scores |
+| `benchmark_id` | UUID | FK → `benchmarks(id)`, nullable, `ON DELETE SET NULL`. Back-link to the benchmark created at save time. |
+| `created_at` | TIMESTAMPTZ | Default `NOW()` |
+
+Indexed on `user_id`, `created_at DESC`, and `benchmark_id`. RLS: owner-only for all operations.
 
 ### `run_outputs`
 
-Stores the actual text responses from each model.
+Per-model response text. Kept separate from `runs.metrics` because the bodies can be large.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `run_id` | UUID | FK → `runs(id)`, cascade delete |
+| `user_id` | UUID | FK → `auth.users(id)`, cascade delete. Held redundantly for RLS. |
+| `model` | TEXT | Model identifier (e.g. `gpt-4o-mini`) |
+| `output` | TEXT | Response text |
+| `created_at` | TIMESTAMPTZ | Default `NOW()` |
+
+Indexed on `run_id`, `user_id`. RLS: owner-only for all operations.
+
+### `feedback`
+
+Optional thumbs / star / comment per `(user, run, model)`.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK → `auth.users(id)`, cascade delete |
+| `run_id` | UUID | FK → `runs(id)`, cascade delete |
+| `model` | TEXT | Which model the feedback is for |
+| `thumbs` | TEXT | `'up'` or `'down'` (CHECK constraint) |
+| `stars` | INTEGER | 1–5 (CHECK constraint) |
+| `comment` | TEXT | Optional free text |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+Unique constraint on `(user_id, run_id, model)` — one feedback row per user/run/model. RLS: owner-only.
+
+### `benchmarks`
+
+A re-openable, shareable snapshot of a run. Created automatically by `/api/run`. Phase 2b will add the `is_public` publish toggle UI; the column already exists.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `slug` | TEXT | Unique, ~10-char URL-safe. Used in `/b/[slug]`. |
+| `owner_id` | UUID | FK → `auth.users(id)`, cascade delete |
+| `run_id` | UUID | FK → `runs(id)`, cascade delete |
+| `prompt` / `system_prompt` / `models` | snapshot | Cached at save time so the benchmark page doesn't need to join through `runs` for the basics. |
+| `disagreement_score` | INTEGER | 0–100, computed by `src/lib/evaluation/disagreement.ts`. NULL when fewer than two non-errored responses. |
+| `is_public` | BOOLEAN | Default `FALSE`. Phase 2b adds the publish flow. |
+| `created_at` | TIMESTAMPTZ | Default `NOW()` |
+
+Indexed on `slug`, `owner_id`, `created_at DESC`, and a partial index on `is_public` where it's `TRUE`. RLS: owner can do anything; anyone can read rows where `is_public = TRUE` (including unauthenticated visitors).
+
+## Applying the schema
+
+1. Open your Supabase project → SQL Editor → New query.
+2. Paste the contents of `supabase/migrations/0001_initial_schema.sql`.
+3. Run. You should see four tables created in the Table editor: `runs`, `run_outputs`, `feedback`, `benchmarks`.
+
+To verify RLS is on:
 
 ```sql
--- Simplified schema (existing)
-CREATE TABLE run_outputs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id),
-  model TEXT NOT NULL,
-  output TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+SELECT tablename, rowsecurity FROM pg_tables
+WHERE schemaname = 'public' AND tablename IN ('runs','run_outputs','feedback','benchmarks');
 ```
 
-## Migration Instructions
-
-To apply these schema changes to your Supabase project:
-
-1. **Via Supabase Dashboard**:
-   - Go to SQL Editor in your Supabase project
-   - Copy the CREATE TABLE and RLS policy SQL from above
-   - Execute the SQL commands
-
-2. **Via Supabase CLI** (if using migration files):
-   ```bash
-   supabase migration new add_feedback_table
-   # Add the SQL from above to the generated migration file
-   supabase db push
-   ```
-
-3. **Verification**:
-   After applying the migration, verify:
-   ```sql
-   -- Check table exists
-   SELECT * FROM information_schema.tables WHERE table_name = 'feedback';
-   
-   -- Check RLS is enabled
-   SELECT tablename, rowsecurity FROM pg_tables WHERE tablename = 'feedback';
-   
-   -- Check policies exist
-   SELECT * FROM pg_policies WHERE tablename = 'feedback';
-   ```
-
-## API Integration
-
-The following API endpoints work with this schema:
-
-- `POST /api/feedback` - Save or update feedback
-- `GET /api/feedback?runId={runId}` - Retrieve feedback for a specific run
-
-See the API route implementations in `src/app/api/feedback/route.ts` for details.
-
-## Future Enhancements
-
-Potential schema additions for future phases:
-
-1. **Feedback aggregation view**:
-   ```sql
-   CREATE VIEW feedback_stats AS
-   SELECT 
-     model,
-     COUNT(*) as total_ratings,
-     AVG(stars) as avg_stars,
-     SUM(CASE WHEN thumbs = 'up' THEN 1 ELSE 0 END) as thumbs_up,
-     SUM(CASE WHEN thumbs = 'down' THEN 1 ELSE 0 END) as thumbs_down
-   FROM feedback
-   WHERE stars IS NOT NULL OR thumbs IS NOT NULL
-   GROUP BY model;
-   ```
-
-2. **Third-party validator results table**:
-   ```sql
-   CREATE TABLE validator_results (
-     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-     user_id UUID NOT NULL REFERENCES auth.users(id),
-     run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-     model TEXT NOT NULL,
-     validator_name TEXT NOT NULL, -- 'ragas', 'trulens', etc.
-     metrics JSONB NOT NULL,
-     created_at TIMESTAMPTZ DEFAULT NOW()
-   );
-   ```
+All four should report `rowsecurity = true`.
 
 ## Notes
 
-- All tables use RLS (Row-Level Security) to ensure users can only access their own data
-- Timestamps are stored in UTC with timezone support (TIMESTAMPTZ)
-- JSONB is used for flexible metric storage
-- UUIDs are used for all primary keys for security and scalability
+- All primary keys are UUIDs.
+- Timestamps are TIMESTAMPTZ (UTC with offset).
+- Every table has Row-Level Security enabled. The app's auth identity (`auth.uid()`) is the boundary that every policy compares against.
+- The bootstrap file uses `ON DELETE CASCADE` aggressively — deleting a user wipes their runs, outputs, feedback, and benchmarks. Deleting a run wipes its outputs, feedback rows, and benchmark.

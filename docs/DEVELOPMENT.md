@@ -45,7 +45,13 @@ cp .env.example .env.local
 # See "Environment Variables" section below for details
 ```
 
-### 3. Run Development Server
+### 3. Bootstrap the Database
+
+In your Supabase project (a free one works for dev), open the SQL editor and run the contents of [`supabase/migrations/0001_initial_schema.sql`](../supabase/migrations/0001_initial_schema.sql). This creates the `runs`, `run_outputs`, `feedback`, and `benchmarks` tables along with all RLS policies. The file is idempotent — safe to re-run.
+
+See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for what each table holds.
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
@@ -201,25 +207,14 @@ You can develop and test most of the application without real LLM API keys:
 ❌ Testing provider integrations  
 ❌ Helicone observability  
 
-### Mock Testing Approach
+### Keeping LLM costs low while developing
 
-For testing LLM features without real API calls:
+The debug pages (`/runs-debug`, `/auth-debug`, `/provider-test`) that older versions of this doc referenced were removed in v0.2 for security reasons (they exposed user IDs or burned API tokens without auth). To minimize spend while iterating:
 
-1. **Use the debug pages**:
-   - `/runs-debug` - Test database operations with mock data
-   - `/auth-debug` - Test authentication flow
-   - `/provider-test` - Test provider connectivity (requires keys)
-
-2. **Create sample runs** manually:
-   ```typescript
-   // In /runs-debug, click "Create sample run"
-   // This inserts mock data without calling APIs
-   ```
-
-3. **Test with minimal prompts**:
-   - Use very short prompts to minimize token usage
-   - Test with one model at a time
-   - Use GPT-4o-mini which is cheapest
+- Use `gpt-4o-mini` exclusively while iterating — it's by far the cheapest of the supported models.
+- Test with one-sentence prompts; you almost never need full paragraphs while debugging UI.
+- Pick a single model from the picker on `/runner` until you're explicitly testing the multi-model comparison flow.
+- Set `DISABLE_LLM_RUNS=true` in `.env.local` to short-circuit `/api/run` with a 503 — useful when you're working on the UI and don't want any accidental real calls.
 
 ---
 
@@ -250,7 +245,7 @@ For testing LLM features without real API calls:
 **Solution:**
 1. Verify API keys are correct
 2. Check API key has sufficient quota
-3. Test with `/provider-test` page
+3. Check the server-side logs (`npm run dev` terminal) for the `[api/run] provider call failed:` line — it has the redacted provider error
 4. Review Helicone dashboard for errors
 
 ### Build fails in CI

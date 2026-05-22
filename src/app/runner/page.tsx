@@ -14,7 +14,9 @@ type Result = {
   error?: string;
   evaluation?: EvaluationMetrics;
 };
-type RunResponse = { results: Result[]; runId?: string } | { error: string };
+type RunResponse =
+  | { results: Result[]; runId?: string; benchmarkSlug?: string; disagreementScore?: number | null }
+  | { error: string };
 
 const AVAILABLE_MODELS = [
   { id: 'gpt-4o-mini', label: 'OpenAI: gpt-4o-mini' },
@@ -28,6 +30,9 @@ export default function RunnerPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [runId, setRunId] = useState<string | null>(null);
+  const [benchmarkSlug, setBenchmarkSlug] = useState<string | null>(null);
+  const [disagreementScore, setDisagreementScore] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   function toggleModel(id: string) {
@@ -63,6 +68,9 @@ export default function RunnerPage() {
     setMsg(null);
     setResults([]);
     setRunId(null);
+    setBenchmarkSlug(null);
+    setDisagreementScore(null);
+    setCopied(false);
     if (!prompt.trim() || selected.length === 0) {
       setMsg('Enter a prompt and pick at least one model.');
       return;
@@ -80,12 +88,33 @@ export default function RunnerPage() {
       } else {
         setResults(data.results);
         setRunId(data.runId ?? null);
+        setBenchmarkSlug(data.benchmarkSlug ?? null);
+        setDisagreementScore(data.disagreementScore ?? null);
       }
     } catch (err) {
       setMsg(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyBenchmarkLink() {
+    if (!benchmarkSlug) return;
+    const url = `${window.location.origin}/b/${benchmarkSlug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API can fail in non-secure contexts; nothing to do but ignore.
+    }
+  }
+
+  function disagreementLabel(score: number | null): string {
+    if (score === null) return '';
+    if (score < 25) return 'Models largely agreed';
+    if (score < 60) return 'Moderate disagreement';
+    return 'Substantial disagreement';
   }
 
   function exportResults(format: 'json' | 'csv') {
@@ -191,6 +220,32 @@ export default function RunnerPage() {
 
           {results.length > 0 && (
             <div className="space-y-8 mt-8">
+              {/* Saved benchmark banner */}
+              {benchmarkSlug && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+                  <div className="text-sm text-orange-900">
+                    <span className="font-semibold">Saved.</span>{' '}
+                    <a
+                      href={`/b/${benchmarkSlug}`}
+                      className="font-mono underline decoration-orange-400 underline-offset-4 hover:text-orange-700"
+                    >
+                      /b/{benchmarkSlug}
+                    </a>
+                    {disagreementScore !== null && (
+                      <span className="ml-3 text-orange-800">· {disagreementLabel(disagreementScore)} ({disagreementScore}/100)</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyBenchmarkLink}
+                    className="px-3 py-1.5 bg-white border border-orange-300 text-orange-800 hover:bg-orange-100 rounded-md text-sm font-medium transition-colors"
+                    aria-live="polite"
+                  >
+                    {copied ? 'Copied!' : 'Copy link'}
+                  </button>
+                </div>
+              )}
+
               {/* Export Buttons */}
               <div className="flex justify-end gap-3">
                 <button
