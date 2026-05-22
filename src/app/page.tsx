@@ -15,19 +15,13 @@ export default function Home() {
             latency, token usage, and costs in real-time.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
+            <Link
               href="/runner"
               className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200 shadow-lg"
             >
               Try the Runner
             </Link>
-            <Link 
-              href="/batch"
-              className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200 shadow-lg"
-            >
-              Batch Testing
-            </Link>
-            <Link 
+            <Link
               href="/compare"
               className="border border-gray-300 hover:bg-gray-100 hover:text-gray-900 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200"
             >
