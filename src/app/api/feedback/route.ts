@@ -70,14 +70,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid runId or model' }, { status: 400 });
     }
 
-    // 3) Check if feedback already exists for this run/model combination
+    // 3) Check if feedback already exists for this run/model combination.
+    // .maybeSingle() returns { data: null } for zero rows instead of an
+    // error — matches our intent of "find one if it exists."
     const { data: existing } = await supabase
       .from('feedback')
       .select('id')
       .eq('run_id', runId)
       .eq('model', model)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Update existing feedback — re-assert user_id on UPDATE so the

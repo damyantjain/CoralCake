@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   benchmarkId: string;
@@ -12,21 +12,37 @@ export function PublishToggle({ benchmarkId, initialIsPublic }: Props) {
   const [loading, setLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
 
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toggleAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      toggleAbortRef.current?.abort();
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
+
   const handleToggle = async () => {
     const next = !isPublic;
     setLoading(true);
     setIsPublic(next);
+
+    toggleAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    toggleAbortRef.current = ctrl;
 
     try {
       const res = await fetch(`/api/benchmarks/${benchmarkId}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ is_public: next }),
+        signal: ctrl.signal,
       });
       if (!res.ok) {
         setIsPublic(!next);
       }
-    } catch {
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
       setIsPublic(!next);
     } finally {
       setLoading(false);
@@ -40,12 +56,17 @@ export function PublishToggle({ benchmarkId, initialIsPublic }: Props) {
     } catch {
       setCopyStatus('failed');
     }
-    setTimeout(() => setCopyStatus('idle'), 1500);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => {
+      setCopyStatus('idle');
+      copyTimeoutRef.current = null;
+    }, 1500);
   };
 
   return (
     <div className="flex items-center gap-2">
       <button
+        type="button"
         onClick={handleToggle}
         disabled={loading}
         className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
@@ -60,6 +81,7 @@ export function PublishToggle({ benchmarkId, initialIsPublic }: Props) {
 
       {isPublic && (
         <button
+          type="button"
           onClick={handleCopy}
           className="px-3 py-1 text-xs font-medium rounded border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
         >

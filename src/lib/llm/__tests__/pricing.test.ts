@@ -1,41 +1,63 @@
-// Simple test for pricing calculations
+import { describe, expect, it } from 'vitest';
 import { estimateCostUSD } from '../pricing';
 
-// Mock usage data
-const mockUsage = {
-  prompt_tokens: 100,
-  completion_tokens: 50,
-  total_tokens: 150,
-};
+describe('estimateCostUSD', () => {
+  const usage = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 };
 
-console.log('Testing pricing calculations...');
+  it('prices gpt-4o-mini at the documented $0.15/$0.60 per 1M', () => {
+    // (100/1000 * 0.00015) + (50/1000 * 0.00060) = 0.000045
+    expect(estimateCostUSD('gpt-4o-mini', usage)).toBeCloseTo(0.000045, 6);
+  });
 
-// Test OpenAI models
-const gpt4oMiniCost = estimateCostUSD('gpt-4o-mini', mockUsage);
-console.log('gpt-4o-mini cost:', gpt4oMiniCost);
-// Expected: (100/1000 * 0.00015) + (50/1000 * 0.00060) = 0.000015 + 0.00003 = 0.000045
+  it('prices gpt-4o at the documented $2.50/$10.00 per 1M', () => {
+    // (100/1000 * 0.0025) + (50/1000 * 0.01) = 0.00075
+    expect(estimateCostUSD('gpt-4o', usage)).toBeCloseTo(0.00075, 6);
+  });
 
-const gpt4oCost = estimateCostUSD('gpt-4o', mockUsage);
-console.log('gpt-4o cost:', gpt4oCost);
-// Expected: (100/1000 * 0.0025) + (50/1000 * 0.01) = 0.00025 + 0.0005 = 0.00075
+  it('prices mistral-small at the documented ~$0.20/$0.60 per 1M', () => {
+    // (100/1000 * 0.0002) + (50/1000 * 0.0006) = 0.00005
+    expect(estimateCostUSD('mistral-small', usage)).toBeCloseTo(0.00005, 6);
+  });
 
-// Test Mistral models
-const mistralSmallCost = estimateCostUSD('mistral-small', mockUsage);
-console.log('mistral-small cost:', mistralSmallCost);
-// Expected: (100/1000 * 0.0002) + (50/1000 * 0.0006) = 0.00002 + 0.00003 = 0.00005
+  it('returns undefined for unknown models', () => {
+    expect(estimateCostUSD('not-a-real-model', usage)).toBeUndefined();
+  });
 
+  it('returns undefined when usage is missing', () => {
+    expect(estimateCostUSD('gpt-4o', undefined)).toBeUndefined();
+  });
 
+  it('returns undefined when a token field is missing', () => {
+    expect(
+      estimateCostUSD('gpt-4o', { completion_tokens: 50, total_tokens: 50 } as never),
+    ).toBeUndefined();
+  });
 
-// Test unknown model
-const unknownCost = estimateCostUSD('unknown-model', mockUsage);
-console.log('unknown-model cost:', unknownCost);
-// Expected: undefined
+  it('returns undefined when a token field is NaN', () => {
+    expect(
+      estimateCostUSD('gpt-4o', { prompt_tokens: NaN, completion_tokens: 50, total_tokens: 50 }),
+    ).toBeUndefined();
+  });
 
-// Verify calculations
-console.log('\nVerification:');
-console.log('gpt-4o-mini === 0.000045:', gpt4oMiniCost === 0.000045);
-console.log('gpt-4o === 0.00075:', gpt4oCost === 0.00075);
-console.log('mistral-small === 0.00005:', mistralSmallCost === 0.00005);
-console.log('unknown-model === undefined:', unknownCost === undefined);
+  it('returns undefined when a token count is negative', () => {
+    expect(
+      estimateCostUSD('gpt-4o', { prompt_tokens: -1, completion_tokens: 50, total_tokens: 49 }),
+    ).toBeUndefined();
+  });
 
-console.log('\nAll tests passed!');
+  it('returns undefined when a token count is Infinity', () => {
+    expect(
+      estimateCostUSD('gpt-4o', {
+        prompt_tokens: Infinity,
+        completion_tokens: 0,
+        total_tokens: Infinity,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('returns 0 for zero usage', () => {
+    expect(
+      estimateCostUSD('gpt-4o', { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }),
+    ).toBe(0);
+  });
+});

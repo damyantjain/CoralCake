@@ -46,6 +46,7 @@ type RunResponse = {
   results: RunResult[];
   runId?: string;
   benchmarkSlug?: string;
+  benchmarkError?: 'save_failed';
   disagreementScore?: number | null;
 };
 
@@ -245,6 +246,7 @@ export async function POST(req: Request) {
       results.map((r) => ({ text: r.text, error: r.error })),
     );
     let benchmarkSlug: string | undefined;
+    let benchmarkError: 'save_failed' | undefined;
     if (inserted?.id) {
       benchmarkSlug = await saveBenchmark(supabase, {
         ownerId: user.id,
@@ -253,6 +255,7 @@ export async function POST(req: Request) {
         models,
         disagreementScore,
       });
+      if (!benchmarkSlug) benchmarkError = 'save_failed';
     }
 
     // 6) Respond
@@ -260,6 +263,7 @@ export async function POST(req: Request) {
       results,
       runId: inserted?.id,
       benchmarkSlug,
+      benchmarkError,
       disagreementScore,
     } satisfies RunResponse);
 

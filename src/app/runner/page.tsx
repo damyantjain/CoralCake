@@ -1,21 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
 import { FeedbackButtons } from '@/components/feedback/FeedbackButtons';
 
 type Usage = { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-type Result = { 
-  model: string; 
-  text: string; 
-  latency_ms: number; 
-  usage?: Usage; 
-  cost_usd?: number; 
+type Result = {
+  model: string;
+  text: string;
+  latency_ms: number;
+  usage?: Usage;
+  cost_usd?: number;
   error?: string;
   evaluation?: EvaluationMetrics;
 };
 type RunResponse =
-  | { results: Result[]; runId?: string; benchmarkSlug?: string; disagreementScore?: number | null }
+  | {
+      results: Result[];
+      runId?: string;
+      benchmarkSlug?: string;
+      benchmarkError?: 'save_failed';
+      disagreementScore?: number | null;
+    }
   | { error: string };
 
 const AVAILABLE_MODELS = [
@@ -34,6 +40,23 @@ export default function RunnerPage() {
   const [disagreementScore, setDisagreementScore] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [benchmarkError, setBenchmarkError] = useState<'save_failed' | null>(null);
+
+  // Lifecycle / in-flight tracking. The runner submits an expensive request
+  // and we don't want state updates to land after the component unmounts or
+  // a second submit supersedes the first.
+  const runAbortRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      runAbortRef.current?.abort();
+      feedbackAbortRef.current?.abort();
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   function toggleModel(id: string) {
     setSelected((prev) =>
@@ -47,32 +70,52 @@ export default function RunnerPage() {
       return;
     }
 
+    // Cancel any previous feedback POST that's still in flight — only the
+    // latest user action should land.
+    feedbackAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    feedbackAbortRef.current = ctrl;
+
     try {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ runId, model, thumbs, stars }),
+        signal: ctrl.signal,
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         console.error('Failed to save feedback:', data.error);
       }
     } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
       console.error('Failed to save feedback:', err);
     }
   }
 
   async function onRun(e: React.FormEvent) {
     e.preventDefault();
+    // Belt-and-suspenders: the submit button is disabled while loading, but
+    // a determined double-tap (or programmatic dispatch) can still race
+    // past `disabled`. The ref guards against a second concurrent call.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    runAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    runAbortRef.current = ctrl;
+
     setMsg(null);
     setResults([]);
     setRunId(null);
     setBenchmarkSlug(null);
+    setBenchmarkError(null);
     setDisagreementScore(null);
     setCopied(false);
     if (!prompt.trim() || selected.length === 0) {
       setMsg('Enter a prompt and pick at least one model.');
+      inFlightRef.current = false;
       return;
     }
     setLoading(true);
@@ -81,6 +124,7 @@ export default function RunnerPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, models: selected }),
+        signal: ctrl.signal,
       });
       const data: RunResponse = await res.json();
       if (!res.ok || 'error' in data) {
@@ -89,12 +133,15 @@ export default function RunnerPage() {
         setResults(data.results);
         setRunId(data.runId ?? null);
         setBenchmarkSlug(data.benchmarkSlug ?? null);
+        setBenchmarkError(data.benchmarkError ?? null);
         setDisagreementScore(data.disagreementScore ?? null);
       }
     } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
       setMsg(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   }
 
@@ -104,7 +151,11 @@ export default function RunnerPage() {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
     } catch {
       // Clipboard API can fail in non-secure contexts; nothing to do but ignore.
     }
@@ -255,6 +306,11 @@ export default function RunnerPage() {
                   >
                     {copied ? 'Copied!' : 'Copy link'}
                   </button>
+                </div>
+              )}
+              {!benchmarkSlug && benchmarkError === 'save_failed' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Run completed, but the shareable link couldn&apos;t be created. Your results are still saved to your account.
                 </div>
               )}
 

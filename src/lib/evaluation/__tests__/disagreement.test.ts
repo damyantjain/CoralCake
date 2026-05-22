@@ -1,101 +1,109 @@
-// src/lib/evaluation/__tests__/disagreement.test.ts
-//
-// No formal test runner is wired up yet (see pricing.test.ts for the same
-// pattern). Run ad-hoc with `npx tsx src/lib/evaluation/__tests__/disagreement.test.ts`
-// to smoke-check. Phase 3 will add vitest and these will become real tests.
-
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 import {
   computeDisagreement,
   normalizedLevenshtein,
   tokenCosineSimilarity,
 } from '../disagreement';
 
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  ok  ${name}`);
-  } catch (err) {
-    console.error(`  FAIL ${name}`);
-    console.error(err);
-    process.exitCode = 1;
-  }
-}
+describe('normalizedLevenshtein', () => {
+  it('returns 0 for identical strings', () => {
+    expect(normalizedLevenshtein('hello', 'hello')).toBe(0);
+  });
 
-console.log('normalizedLevenshtein');
-test('identical strings → 0', () => {
-  assert.equal(normalizedLevenshtein('hello', 'hello'), 0);
-});
-test('one empty → 1', () => {
-  assert.equal(normalizedLevenshtein('hello', ''), 1);
-  assert.equal(normalizedLevenshtein('', 'hello'), 1);
-});
-test('single edit on short string → 1/length', () => {
-  assert.equal(normalizedLevenshtein('cat', 'bat'), 1 / 3);
-});
-test('completely different strings → 1', () => {
-  assert.equal(normalizedLevenshtein('abc', 'xyz'), 1);
+  it('returns 1 when either side is empty', () => {
+    expect(normalizedLevenshtein('hello', '')).toBe(1);
+    expect(normalizedLevenshtein('', 'hello')).toBe(1);
+  });
+
+  it('returns single-edit distance over length', () => {
+    expect(normalizedLevenshtein('cat', 'bat')).toBeCloseTo(1 / 3, 10);
+  });
+
+  it('returns 1 for completely disjoint same-length strings', () => {
+    expect(normalizedLevenshtein('abc', 'xyz')).toBe(1);
+  });
 });
 
-console.log('\ntokenCosineSimilarity');
-test('identical text → 1', () => {
-  assert.ok(tokenCosineSimilarity('hello world', 'hello world') > 0.999);
-});
-test('disjoint vocabularies → 0', () => {
-  assert.equal(tokenCosineSimilarity('hello world', 'foo bar'), 0);
-});
-test('case + punctuation insensitive', () => {
-  const s = tokenCosineSimilarity('Hello, world!', 'hello world');
-  assert.ok(s > 0.999);
-});
-test('partial overlap → 0 < x < 1', () => {
-  const s = tokenCosineSimilarity('the quick brown fox', 'the lazy dog');
-  assert.ok(s > 0 && s < 1);
+describe('tokenCosineSimilarity', () => {
+  it('returns ~1 for identical bags of tokens', () => {
+    expect(tokenCosineSimilarity('hello world', 'hello world')).toBeGreaterThan(0.999);
+  });
+
+  it('returns 0 for disjoint vocabularies', () => {
+    expect(tokenCosineSimilarity('hello world', 'foo bar')).toBe(0);
+  });
+
+  it('is case- and punctuation-insensitive', () => {
+    expect(tokenCosineSimilarity('Hello, world!', 'hello world')).toBeGreaterThan(0.999);
+  });
+
+  it('returns a fractional value for partial overlap', () => {
+    const s = tokenCosineSimilarity('the quick brown fox', 'the lazy dog');
+    expect(s).toBeGreaterThan(0);
+    expect(s).toBeLessThan(1);
+  });
 });
 
-console.log('\ncomputeDisagreement');
-test('empty input → null', () => {
-  assert.equal(computeDisagreement([]), null);
-});
-test('single response → null', () => {
-  assert.equal(computeDisagreement([{ text: 'only one' }]), null);
-});
-test('errored responses dropped — single survivor → null', () => {
-  assert.equal(
-    computeDisagreement([{ text: 'one', error: 'boom' }, { text: 'two' }]),
-    null,
-  );
-});
-test('two identical responses → 0', () => {
-  assert.equal(computeDisagreement([{ text: 'same text here' }, { text: 'same text here' }]), 0);
-});
-test('two totally different responses → near 100', () => {
-  const score = computeDisagreement([
-    { text: 'The cat sat on the mat.' },
-    { text: 'Quantum physics describes subatomic particles.' },
-  ]);
-  assert.ok(score !== null && score > 70, `expected > 70, got ${score}`);
-});
-test('three responses with one outlier → between identical and totally different', () => {
-  const score = computeDisagreement([
-    { text: 'The capital of France is Paris.' },
-    { text: 'Paris is the capital of France.' },
-    { text: 'Bananas grow in tropical regions.' },
-  ]);
-  assert.ok(score !== null && score > 30 && score < 90, `expected mid-range, got ${score}`);
-});
-test('three identical responses → 0', () => {
-  const score = computeDisagreement([
-    { text: 'identical' },
-    { text: 'identical' },
-    { text: 'identical' },
-  ]);
-  assert.equal(score, 0);
-});
-test('long responses do not blow up', () => {
-  const long = (seed: string) => seed.repeat(2000);
-  const score = computeDisagreement([{ text: long('a') }, { text: long('b') }]);
-  assert.ok(score !== null && score >= 0 && score <= 100);
-});
+describe('computeDisagreement', () => {
+  it('returns null for empty input', () => {
+    expect(computeDisagreement([])).toBeNull();
+  });
 
-console.log('\nDone.');
+  it('returns null for a single response', () => {
+    expect(computeDisagreement([{ text: 'only one' }])).toBeNull();
+  });
+
+  it('drops errored responses and returns null when only one usable response remains', () => {
+    expect(
+      computeDisagreement([{ text: 'one', error: 'boom' }, { text: 'two' }]),
+    ).toBeNull();
+  });
+
+  it('drops empty/whitespace responses', () => {
+    expect(computeDisagreement([{ text: 'real text' }, { text: '   ' }])).toBeNull();
+  });
+
+  it('returns 0 for two identical responses', () => {
+    expect(
+      computeDisagreement([{ text: 'same text here' }, { text: 'same text here' }]),
+    ).toBe(0);
+  });
+
+  it('returns 0 for three identical responses', () => {
+    expect(
+      computeDisagreement([
+        { text: 'identical' },
+        { text: 'identical' },
+        { text: 'identical' },
+      ]),
+    ).toBe(0);
+  });
+
+  it('returns a high score for two totally different responses', () => {
+    const score = computeDisagreement([
+      { text: 'The cat sat on the mat.' },
+      { text: 'Quantum physics describes subatomic particles.' },
+    ]);
+    expect(score).not.toBeNull();
+    expect(score!).toBeGreaterThan(70);
+  });
+
+  it('returns a mid-range score for three responses with one outlier', () => {
+    const score = computeDisagreement([
+      { text: 'The capital of France is Paris.' },
+      { text: 'Paris is the capital of France.' },
+      { text: 'Bananas grow in tropical regions.' },
+    ]);
+    expect(score).not.toBeNull();
+    expect(score!).toBeGreaterThan(30);
+    expect(score!).toBeLessThan(90);
+  });
+
+  it('does not blow up on long inputs and stays in [0, 100]', () => {
+    const long = (seed: string) => seed.repeat(2000);
+    const score = computeDisagreement([{ text: long('a') }, { text: long('b') }]);
+    expect(score).not.toBeNull();
+    expect(score!).toBeGreaterThanOrEqual(0);
+    expect(score!).toBeLessThanOrEqual(100);
+  });
+});

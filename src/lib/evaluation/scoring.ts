@@ -154,9 +154,16 @@ export function checkGrammar(text: string): string[] {
 }
 
 /**
- * Calculate overall quality score for a response
+ * Calculate overall quality score for a response. Returns `undefined` when
+ * the response is empty/whitespace — there's nothing to evaluate and
+ * persisting a default-shaped 35/100 score for empty text is misleading.
  */
-export function evaluateResponse(prompt: string, response: string): EvaluationMetrics {
+export function evaluateResponse(
+  prompt: string,
+  response: string,
+): EvaluationMetrics | undefined {
+  if (response.trim().length === 0) return undefined;
+
   const relevance = calculateRelevance(prompt, response);
   const coherence = calculateCoherence(response);
   const readability = calculateReadability(response);

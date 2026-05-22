@@ -30,11 +30,24 @@ function warnDevFallback() {
 
 const memCounters = new Map<string, { count: number; resetAt: number }>();
 
+// When the map grows past this threshold, sweep out expired entries. The
+// fast path is a single Map lookup; this only fires under sustained load
+// without Upstash configured (dev/test). Keeps the dev server from
+// accumulating one entry per unique identifier forever.
+const MEM_COUNTERS_SWEEP_THRESHOLD = 10_000;
+
+function sweepExpired(now: number) {
+  for (const [k, v] of memCounters) {
+    if (v.resetAt <= now) memCounters.delete(k);
+  }
+}
+
 function memLimit(key: string, cfg: LimiterConfig): LimitResult {
   const now = Date.now();
   const windowMs = cfg.windowSeconds * 1000;
   const existing = memCounters.get(key);
   if (!existing || existing.resetAt <= now) {
+    if (memCounters.size >= MEM_COUNTERS_SWEEP_THRESHOLD) sweepExpired(now);
     memCounters.set(key, { count: 1, resetAt: now + windowMs });
     return { success: true, limit: cfg.limit, remaining: cfg.limit - 1, reset: now + windowMs };
   }

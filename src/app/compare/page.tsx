@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 type Usage = {
@@ -25,30 +26,39 @@ type Run = {
 };
 
 export default function ComparePage() {
+  const router = useRouter();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRuns, setSelectedRuns] = useState<string[]>([]);
 
   useEffect(() => {
-    loadRuns();
-  }, []);
+    const ctrl = new AbortController();
 
-  async function loadRuns() {
-    try {
-      const res = await fetch('/api/runs');
-      const data = await res.json();
-      if (!res.ok || 'error' in data) {
-        setError(data.error || 'Failed to load runs');
-      } else {
-        setRuns(data.runs || []);
+    (async () => {
+      try {
+        const res = await fetch('/api/runs', { signal: ctrl.signal });
+        if (res.status === 401) {
+          // Session expired between page load and this fetch.
+          router.replace(`/login?redirectTo=${encodeURIComponent('/compare')}`);
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok || 'error' in data) {
+          setError(data.error || 'Failed to load runs');
+        } else {
+          setRuns(data.runs || []);
+        }
+      } catch (err) {
+        if ((err as { name?: string })?.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }
+    })();
+
+    return () => ctrl.abort();
+  }, [router]);
 
   function toggleRun(id: string) {
     setSelectedRuns((prev) =>

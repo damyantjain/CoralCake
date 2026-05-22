@@ -61,7 +61,10 @@ export default async function BenchmarkPage({
   } = await supabase.auth.getUser();
   const isOwner = user?.id === benchmark.owner_id;
 
-  const [{ data: run }, { data: outputs }] = await Promise.all([
+  // Treat each sub-query as independent: a transient failure on one
+  // shouldn't blank the whole page. If metrics fail to load but outputs
+  // come through (or vice versa) we still render what we have.
+  const [runRes, outputsRes] = await Promise.allSettled([
     supabase
       .from('runs')
       .select('metrics')
@@ -72,6 +75,13 @@ export default async function BenchmarkPage({
       .select('model, output')
       .eq('run_id', benchmark.run_id),
   ]);
+
+  const run =
+    runRes.status === 'fulfilled' && !runRes.value.error ? runRes.value.data : null;
+  const outputs =
+    outputsRes.status === 'fulfilled' && !outputsRes.value.error
+      ? outputsRes.value.data
+      : null;
 
   const metrics = run?.metrics ?? {};
   const outputByModel = new Map<string, string>((outputs ?? []).map((o: OutputRow) => [o.model, o.output]));

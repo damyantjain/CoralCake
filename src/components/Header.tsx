@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -11,6 +11,7 @@ export default function Header() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
+  const msgTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // get current session user (if any)
@@ -19,8 +20,22 @@ export default function Header() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setUserEmail(session?.user?.email ?? null);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+      if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current);
+    };
   }, []);
+
+  // Auto-clear the inline msg after 5s so a stale "Check your email…"
+  // banner doesn't linger across navigation.
+  useEffect(() => {
+    if (!msg) return;
+    if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current);
+    msgTimeoutRef.current = setTimeout(() => setMsg(null), 5000);
+    return () => {
+      if (msgTimeoutRef.current) clearTimeout(msgTimeoutRef.current);
+    };
+  }, [msg]);
 
   async function onSendLink(e: React.FormEvent) {
     e.preventDefault();
@@ -73,7 +88,11 @@ export default function Header() {
           {userEmail ? (
             <>
               <span className="text-sm text-gray-600">{userEmail}</span>
-              <button onClick={onSignOut} className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+              >
                 Sign out
               </button>
             </>
@@ -88,6 +107,7 @@ export default function Header() {
                 className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
               />
               <button
+                type="submit"
                 disabled={loading}
                 className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
