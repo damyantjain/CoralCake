@@ -78,7 +78,8 @@ export async function POST(req: Request) {
         .eq('id', existing.id);
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        console.error('[api/feedback] update failed:', error);
+        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 400 });
       }
 
       return NextResponse.json({ ok: true, updated: true });
@@ -94,15 +95,18 @@ export async function POST(req: Request) {
       });
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        console.error('[api/feedback] insert failed:', error);
+        return NextResponse.json({ error: 'Could not save feedback', code: 'DB_ERROR' }, { status: 400 });
       }
 
       return NextResponse.json({ ok: true, created: true });
     }
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[api/feedback] POST unexpected failure:', err);
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 },
+    );
   }
 }
 
@@ -132,13 +136,16 @@ export async function GET(req: Request) {
       .eq('user_id', user.id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      console.error('[api/feedback] GET query failed:', error);
+      return NextResponse.json({ error: 'Could not load feedback', code: 'DB_ERROR' }, { status: 400 });
     }
 
     return NextResponse.json({ feedback: data ?? [] });
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[api/feedback] GET unexpected failure:', err);
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 },
+    );
   }
 }

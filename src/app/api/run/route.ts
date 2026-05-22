@@ -9,6 +9,13 @@ import { estimateCostUSD, type Usage } from '@/lib/llm/pricing';
 import { withTimeout } from '@/lib/utils';
 import { evaluateResponse } from '@/lib/evaluation/scoring';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
+import {
+  checkRateLimit,
+  clientIp,
+  rateLimitHeaders,
+  RUN_LIMITER,
+  RUN_LIMITER_IP,
+} from '@/lib/ratelimit';
 
 type RunRequest = {
   prompt: string;
@@ -44,6 +51,13 @@ type Err = { model: string; ok: false; text: ''; latency_ms: 0; error: string };
 
 export async function POST(req: Request) {
   try {
+    if (process.env.DISABLE_LLM_RUNS === 'true') {
+      return NextResponse.json(
+        { error: 'LLM runs are temporarily disabled', code: 'DISABLED' },
+        { status: 503 },
+      );
+    }
+
     // 1) Auth: who is calling?
     const supabase = await createClient();
     const {
@@ -51,7 +65,18 @@ export async function POST(req: Request) {
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 2) Validate payload
+    // 2) Rate limit (per-user + per-IP)
+    const ipResult = await checkRateLimit(RUN_LIMITER_IP, clientIp(req));
+    const userResult = await checkRateLimit(RUN_LIMITER, user.id);
+    const limited = !userResult.success ? userResult : !ipResult.success ? ipResult : null;
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', code: 'RATE_LIMITED' },
+        { status: 429, headers: rateLimitHeaders(limited) },
+      );
+    }
+
+    // 3) Validate payload
     const { prompt, models }: RunRequest = await req.json();
     if (typeof prompt !== 'string' || !Array.isArray(models) || models.length === 0) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
@@ -94,15 +119,15 @@ export async function POST(req: Request) {
         usage: r.usage,
         };
     } catch (err: unknown) {
-        const message =
-        err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
-
+        // Log full provider error server-side, but return a generic message to the client
+        // so we don't leak provider response bodies, model IDs, or rate-limit metadata.
+        console.error('[api/run] provider call failed:', { model, err });
         return {
         model,
-        ok: false as const,            // literal false
+        ok: false as const,
         text: '',
         latency_ms: 0 as const,
-        error: message,
+        error: 'Provider request failed',
         };
     }
     });
@@ -182,8 +207,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ results, runId: inserted?.id } satisfies RunResponse);
 
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[api/run] unexpected failure:', err);
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 },
+    );
   }
 }

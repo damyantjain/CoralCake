@@ -10,9 +10,6 @@ Allow: /runs-last
 
 # Disallow sensitive endpoints
 Disallow: /api/
-Disallow: /auth-debug
-Disallow: /runs-debug
-Disallow: /provider-test
 
 Sitemap: https://coralcake.vercel.app/sitemap.xml`;
 

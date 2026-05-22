@@ -9,9 +9,6 @@ export async function middleware(request: NextRequest) {
     '/runner',
     '/batch',
     '/runs-last',
-    '/runs-debug',
-    '/provider-test',
-    '/auth-debug',
   ];
 
   // Check if the current path requires authentication
@@ -72,8 +69,5 @@ export const config = {
     '/runner/:path*',
     '/batch/:path*',
     '/runs-last/:path*',
-    '/runs-debug/:path*',
-    '/provider-test/:path*',
-    '/auth-debug/:path*',
   ],
 };

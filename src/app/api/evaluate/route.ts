@@ -4,6 +4,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { evaluateResponse } from '@/lib/evaluation/scoring';
+import { checkRateLimit, EVALUATE_LIMITER, rateLimitHeaders } from '@/lib/ratelimit';
 
 type EvaluateRequest = {
   prompt: string;
@@ -23,6 +24,15 @@ export async function POST(req: Request) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Rate limit (per-user)
+    const limit = await checkRateLimit(EVALUATE_LIMITER, user.id);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', code: 'RATE_LIMITED' },
+        { status: 429, headers: rateLimitHeaders(limit) },
+      );
+    }
 
     // Validate payload
     const body: unknown = await req.json();
@@ -46,8 +56,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ metrics });
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[api/evaluate] unexpected failure:', err);
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 },
+    );
   }
 }

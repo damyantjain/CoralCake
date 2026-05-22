@@ -1,0 +1,13 @@
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      # Scan only staged content. Uses .gitleaks.toml at repo root.
+      # If gitleaks isn't installed locally, skip with a hint instead of failing.
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks git --staged --no-banner --redact --config .gitleaks.toml
+        else
+          echo "[lefthook] gitleaks not installed — skipping secret scan."
+          echo "[lefthook] Install with: brew install gitleaks"
+        fi

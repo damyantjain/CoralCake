@@ -22,11 +22,17 @@ export async function POST(req: Request) {
     }
 
     const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) {
+      console.error('[api/auth/sync] setSession failed:', error);
+      return NextResponse.json({ error: 'Could not sync session', code: 'AUTH_ERROR' }, { status: 400 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[api/auth/sync] unexpected failure:', e);
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 },
+    );
   }
 }

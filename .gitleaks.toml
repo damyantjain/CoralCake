@@ -1,0 +1,16 @@
+title = "CoralCake gitleaks config"
+
+# Extend the default ruleset bundled with gitleaks.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives — placeholders in env templates and docs."
+paths = [
+  '''(.+/)?\.env\.example$''',
+  '''docs/.*\.md$''',
+]
+# Truncated JWT header that every Supabase anon-key example starts with.
+regexes = [
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.{3}''',
+]
