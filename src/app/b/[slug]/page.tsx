@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { PublishToggle } from '@/components/PublishToggle';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import type { EvaluationMetrics } from '@/lib/evaluation/types';
 
 export const metadata: Metadata = {
@@ -88,76 +91,81 @@ export default async function BenchmarkPage({
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <header className="mb-6 border-b border-gray-200 pb-4">
+      <header className="mb-6 border-b border-border pb-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <span>Benchmark</span>
-            <span>·</span>
+            <span aria-hidden="true">·</span>
             <span>{new Date(benchmark.created_at).toLocaleString()}</span>
             {!benchmark.is_public && !isOwner && (
-              <span className="ml-2 px-2 py-0.5 rounded bg-gray-100 text-gray-600 normal-case tracking-normal">
-                private
-              </span>
+              <Badge variant="secondary" className="ml-2 normal-case tracking-normal">
+                Private
+              </Badge>
             )}
           </div>
           {isOwner && (
-            <PublishToggle
-              benchmarkId={benchmark.id}
-              initialIsPublic={benchmark.is_public}
-            />
+            <PublishToggle benchmarkId={benchmark.id} initialIsPublic={benchmark.is_public} />
           )}
         </div>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+        <h1 className="mt-2 text-2xl sm:text-3xl font-semibold">
           {disagreementHeadline(benchmark.disagreement_score)}
         </h1>
         {benchmark.disagreement_score !== null && (
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-muted-foreground">
             Disagreement score: {benchmark.disagreement_score}/100
           </p>
         )}
       </header>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Prompt</h2>
-        <pre className="whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Prompt
+        </h2>
+        <pre className="whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-4 text-sm">
           {benchmark.prompt}
         </pre>
       </section>
 
+      <Separator className="mb-6" />
+
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Responses ({benchmark.models.length})
         </h2>
         {benchmark.models.map((model) => {
           const m = metrics[model] ?? {};
           const text = outputByModel.get(model) ?? '';
           return (
-            <article key={model} className="rounded-lg border border-gray-200 bg-white p-4">
-              <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-mono text-sm font-semibold text-gray-900">{model}</h3>
-                <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-                  {typeof m.latency_ms === 'number' && (
-                    <Metric label="latency" value={`${m.latency_ms} ms`} />
-                  )}
-                  {m.usage?.total_tokens !== undefined && (
-                    <Metric label="tokens" value={String(m.usage.total_tokens)} />
-                  )}
-                  {typeof m.cost_usd === 'number' && (
-                    <Metric label="cost" value={`$${m.cost_usd.toFixed(6)}`} />
-                  )}
-                  {typeof m.evaluation?.qualityScore.overall === 'number' && (
-                    <Metric label="quality" value={`${m.evaluation.qualityScore.overall}/100`} />
-                  )}
-                </dl>
-              </header>
-              {m.error ? (
-                <p className="text-sm text-red-700">Provider error: {m.error}</p>
-              ) : text ? (
-                <pre className="whitespace-pre-wrap text-sm text-gray-800">{text}</pre>
-              ) : (
-                <p className="text-sm text-gray-500 italic">No response saved.</p>
-              )}
-            </article>
+            <Card key={model} className="p-0 gap-0">
+              <CardHeader className="pt-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-mono text-sm font-semibold">{model}</h3>
+                  <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {typeof m.latency_ms === 'number' && (
+                      <Metric label="latency" value={`${m.latency_ms} ms`} />
+                    )}
+                    {m.usage?.total_tokens !== undefined && (
+                      <Metric label="tokens" value={String(m.usage.total_tokens)} />
+                    )}
+                    {typeof m.cost_usd === 'number' && (
+                      <Metric label="cost" value={`$${m.cost_usd.toFixed(6)}`} />
+                    )}
+                    {typeof m.evaluation?.qualityScore.overall === 'number' && (
+                      <Metric label="quality" value={`${m.evaluation.qualityScore.overall}/100`} />
+                    )}
+                  </dl>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-3 pb-4">
+                {m.error ? (
+                  <p className="text-sm text-destructive">Provider error: {m.error}</p>
+                ) : text ? (
+                  <pre className="whitespace-pre-wrap text-sm">{text}</pre>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No response saved.</p>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
       </section>
@@ -168,8 +176,8 @@ export default async function BenchmarkPage({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <span>
-      <dt className="inline text-gray-500">{label}:</dt>{' '}
-      <dd className="inline font-medium text-gray-800">{value}</dd>
+      <dt className="inline text-muted-foreground">{label}:</dt>{' '}
+      <dd className="inline font-medium text-foreground">{value}</dd>
     </span>
   );
 }

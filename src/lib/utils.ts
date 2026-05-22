@@ -1,4 +1,12 @@
 import { randomBytes } from 'crypto';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// Combine class names with Tailwind-aware conflict resolution. Standard
+// shadcn/ui helper — keeps variants from later args overriding earlier ones.
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}
 
 // Utility for wrapping promises with timeout
 export function withTimeout<T>(p: Promise<T>, ms = 30_000): Promise<T> {

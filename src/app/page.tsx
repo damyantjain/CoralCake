@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
@@ -15,18 +16,17 @@ export default function Home() {
             latency, token usage, and costs in real-time.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/runner"
-              className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200 shadow-lg"
+            <Button asChild size="lg" className="text-base h-12 px-8 shadow-lg">
+              <Link href="/runner">Try the Runner</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="text-base h-12 px-8 bg-transparent border-slate-300 text-white hover:bg-white hover:text-slate-900"
             >
-              Try the Runner
-            </Link>
-            <Link
-              href="/compare"
-              className="border border-gray-300 hover:bg-gray-100 hover:text-gray-900 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200"
-            >
-              Compare Runs
-            </Link>
+              <Link href="/compare">Compare Runs</Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -146,12 +146,9 @@ export default function Home() {
           <p className="text-xl text-gray-300 mb-8">
             Start testing prompts across multiple language models and optimize your AI workflows.
           </p>
-          <Link 
-            href="/runner"
-            className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors duration-200 shadow-lg inline-block"
-          >
-            Get Started Now
-          </Link>
+          <Button asChild size="lg" className="text-base h-12 px-8 shadow-lg">
+            <Link href="/runner">Get Started Now</Link>
+          </Button>
         </div>
       </section>
     </div>

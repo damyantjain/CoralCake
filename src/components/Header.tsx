@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 export default function Header() {
   const [email, setEmail] = useState('');
@@ -14,9 +19,7 @@ export default function Header() {
   const msgTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // get current session user (if any)
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
-    // listen for changes
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setUserEmail(session?.user?.email ?? null);
     });
@@ -47,12 +50,11 @@ export default function Header() {
     setLoading(true);
     setMsg(null);
     const origin =
-      process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
+      options: { emailRedirectTo: `${origin}/auth/callback` },
     });
     setLoading(false);
     setMsg(error ? error.message : 'Check your email for the sign-in link.');
@@ -64,22 +66,24 @@ export default function Header() {
     setUserEmail(null);
   }
 
+  const navLinkClass = (active: boolean) =>
+    cn(
+      'text-sm transition-colors',
+      active ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground',
+    );
+
   return (
-    <header className="sticky top-0 z-20 border-b bg-white backdrop-blur shadow-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between p-3">
+    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur shadow-sm">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 p-3">
         <div className="flex items-center gap-6">
-          <Link href="/" className="font-semibold text-gray-900">CoralCake</Link>
-          <nav className="hidden sm:flex items-center gap-4">
-            <Link
-              href="/runner"
-              className={`text-sm ${pathname === '/runner' ? 'text-orange-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
-            >
+          <Link href="/" className="font-semibold text-foreground">
+            CoralCake
+          </Link>
+          <nav className="hidden sm:flex items-center gap-4" aria-label="Primary">
+            <Link href="/runner" className={navLinkClass(pathname === '/runner')}>
               Runner
             </Link>
-            <Link
-              href="/compare"
-              className={`text-sm ${pathname === '/compare' ? 'text-orange-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
-            >
+            <Link href="/compare" className={navLinkClass(pathname === '/compare')}>
               Compare
             </Link>
           </nav>
@@ -87,37 +91,43 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {userEmail ? (
             <>
-              <span className="text-sm text-gray-600">{userEmail}</span>
-              <button
-                type="button"
-                onClick={onSignOut}
-                className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
-              >
+              <span className="hidden sm:inline text-sm text-muted-foreground" aria-label="Signed in as">
+                {userEmail}
+              </span>
+              <Button type="button" variant="outline" size="sm" onClick={onSignOut}>
                 Sign out
-              </button>
+              </Button>
             </>
           ) : (
             <form onSubmit={onSendLink} className="flex items-center gap-2">
-              <input
+              <Label htmlFor="header-email" className="sr-only">
+                Email address
+              </Label>
+              <Input
+                id="header-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                className="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                className="h-8 w-44 sm:w-56"
+                autoComplete="email"
               />
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
+              <Button type="submit" variant="outline" size="sm" disabled={loading}>
                 {loading ? 'Sending…' : 'Send link'}
-              </button>
+              </Button>
             </form>
           )}
         </div>
       </div>
-      {msg && <div className="bg-emerald-50 px-4 py-2 text-center text-sm text-emerald-700">{msg}</div>}
+      {msg && (
+        <Alert
+          role={msg.toLowerCase().includes('error') ? 'alert' : 'status'}
+          className="mx-auto max-w-6xl rounded-none border-x-0 border-t-0"
+        >
+          <AlertDescription className="text-center">{msg}</AlertDescription>
+        </Alert>
+      )}
     </header>
   );
 }

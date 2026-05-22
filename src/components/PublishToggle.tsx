@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Props = {
   benchmarkId: string;
@@ -38,9 +40,7 @@ export function PublishToggle({ benchmarkId, initialIsPublic }: Props) {
         body: JSON.stringify({ is_public: next }),
         signal: ctrl.signal,
       });
-      if (!res.ok) {
-        setIsPublic(!next);
-      }
+      if (!res.ok) setIsPublic(!next);
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setIsPublic(!next);
@@ -63,30 +63,43 @@ export function PublishToggle({ benchmarkId, initialIsPublic }: Props) {
     }, 1500);
   };
 
+  const toggleLabel = isPublic ? 'Published' : 'Publish';
+  const toggleTooltip = isPublic
+    ? 'Click to make this benchmark private.'
+    : 'Click to publish — anyone with the link can view.';
+
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={handleToggle}
-        disabled={loading}
-        className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
-          isPublic
-            ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
-            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-        title={isPublic ? 'Click to make private' : 'Click to publish (anyone with the link can view)'}
-      >
-        {isPublic ? 'Published' : 'Publish'}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant={isPublic ? 'default' : 'outline'}
+            onClick={handleToggle}
+            disabled={loading}
+            aria-pressed={isPublic}
+          >
+            {toggleLabel}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{toggleTooltip}</TooltipContent>
+      </Tooltip>
 
       {isPublic && (
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant="outline"
           onClick={handleCopy}
-          className="px-3 py-1 text-xs font-medium rounded border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          aria-live="polite"
         >
-          {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'failed' ? 'Copy failed' : 'Copy link'}
-        </button>
+          {copyStatus === 'copied'
+            ? 'Copied!'
+            : copyStatus === 'failed'
+              ? 'Copy failed'
+              : 'Copy link'}
+        </Button>
       )}
     </div>
   );
